@@ -107,7 +107,7 @@
 	let showAddPageModal = $state(false);
 	let newPageTitle = $state('');
 	let newPageSlug = $state('');
-	let newPageLayout = $state('single');
+	let newPageLayout = $state('free');
 	let newPageGroup = $state('Menu Utama');
 	let newPageParentSlug = $state<string | null>(null);
 	// Screen Wizard mode
@@ -204,7 +204,7 @@
 
 	const allAvailableControls = [...standardControls, ...uikitControls];
 
-	// Budibase Blocks — high-level composed blocks (Fase 2 runtime)
+	// Budibase Blocks â€” high-level composed blocks (Fase 2 runtime)
 	const budibaseBlocks = [
 		{ type: 'data_provider',    name: 'Data Provider',    icon: Database,    group: 'Blocks', desc: 'Fetch data dari tabel/RPC, expose ke child components' },
 		{ type: 'table_block',      name: 'Table Block',      icon: Grid3X3,     group: 'Blocks', desc: 'Auto-generate tabel dari schema dengan search, sort, paginate' },
@@ -232,10 +232,179 @@
 		)
 	);
 
-	async function handleAddComponent(compType: string, customName?: string, datasourceConfig?: Record<string, unknown>) {
+	function getCompBounds(comp: RuntimeComponent, index: number) {
+		const left = typeof comp.props?.left === 'number' ? comp.props.left : 24 + ((index % 3) * 32);
+		const top = typeof comp.props?.top === 'number' ? comp.props.top : 24 + (index * 72);
+		const width = typeof comp.props?.width === 'number' ? comp.props.width : (
+			comp.type.includes('button') ? 160 :
+			comp.type.includes('badge') ? 120 :
+			comp.type.includes('switch') || comp.type.includes('checkbox') ? 180 :
+			comp.type.includes('grid') || comp.type.includes('table') ? 660 :
+			comp.type.includes('kanban') ? 660 :
+			comp.type.includes('chart') ? 500 :
+			comp.type.includes('input') || comp.type.includes('text-item') ? 320 : 360
+		);
+		const height = typeof comp.props?.height === 'number' ? comp.props.height : (
+			comp.type.includes('button') || comp.type.includes('badge') ? 52 :
+			comp.type.includes('input') || comp.type.includes('text-item') ? 72 :
+			comp.type.includes('grid') || comp.type.includes('table') ? 240 :
+			comp.type.includes('kanban') ? 220 :
+			comp.type.includes('chart') ? 220 : 84
+		);
+		return { left, top, width, height };
+	}
+
+	let canvasLayoutMode = $state<'vb' | 'flow'>('vb'); // Visual Basic absolute vs flow stack
+
+	let isDraggingComponent = $state(false);
+	let dragTargetCompId = $state<number | null>(null);
+	let dragStartX = 0;
+	let dragStartY = 0;
+	let compStartLeft = 0;
+	let compStartTop = 0;
+
+	let isResizing = $state(false);
+	let resizeTargetCompId = $state<number | null>(null);
+	let resizeHandle = $state<string | null>(null);
+	let resizeStartX = 0;
+	let resizeStartY = 0;
+	let compStartWidth = 0;
+	let compStartHeight = 0;
+
+	function handleStartMove(e: MouseEvent, comp: RuntimeComponent, index: number) {
+		if (e.button !== 0) return;
+		selectedComponentId = comp.id;
+		isDraggingComponent = true;
+		dragTargetCompId = comp.id;
+		dragStartX = e.clientX;
+		dragStartY = e.clientY;
+		const bounds = getCompBounds(comp, index);
+		compStartLeft = bounds.left;
+		compStartTop = bounds.top;
+
+		window.addEventListener('mousemove', handleMouseMove);
+		window.addEventListener('mouseup', handleMouseUp);
+	}
+
+	function handleStartResize(e: MouseEvent, comp: RuntimeComponent, handle: string, index: number) {
+		e.stopPropagation();
+		e.preventDefault();
+		selectedComponentId = comp.id;
+		isResizing = true;
+		resizeTargetCompId = comp.id;
+		resizeHandle = handle;
+		resizeStartX = e.clientX;
+		resizeStartY = e.clientY;
+		const bounds = getCompBounds(comp, index);
+		compStartLeft = bounds.left;
+		compStartTop = bounds.top;
+		compStartWidth = bounds.width;
+		compStartHeight = bounds.height;
+
+		window.addEventListener('mousemove', handleMouseMove);
+		window.addEventListener('mouseup', handleMouseUp);
+	}
+
+	function handleMouseMove(e: MouseEvent) {
+		if (isDraggingComponent && dragTargetCompId) {
+			const comp = activePage?.components.find((c) => c.id === dragTargetCompId);
+			if (!comp) return;
+			if (!comp.props) comp.props = {};
+
+			const deltaX = e.clientX - dragStartX;
+			const deltaY = e.clientY - dragStartY;
+
+			let newLeft = Math.max(0, compStartLeft + deltaX);
+			let newTop = Math.max(0, compStartTop + deltaY);
+
+			if (snapToGrid) {
+				newLeft = Math.round(newLeft / 16) * 16;
+				newTop = Math.round(newTop / 16) * 16;
+			}
+
+			comp.props.left = newLeft;
+			comp.props.top = newTop;
+		} else if (isResizing && resizeTargetCompId && resizeHandle) {
+			const comp = activePage?.components.find((c) => c.id === resizeTargetCompId);
+			if (!comp) return;
+			if (!comp.props) comp.props = {};
+
+			const deltaX = e.clientX - resizeStartX;
+			const deltaY = e.clientY - resizeStartY;
+
+			let newWidth = compStartWidth;
+			let newHeight = compStartHeight;
+			let newLeft = compStartLeft;
+			let newTop = compStartTop;
+
+			// Horizontal resizing
+			if (resizeHandle.includes('e')) {
+				newWidth = Math.max(64, compStartWidth + deltaX);
+				if (snapToGrid) newWidth = Math.round(newWidth / 16) * 16;
+			} else if (resizeHandle.includes('w')) {
+				newWidth = Math.max(64, compStartWidth - deltaX);
+				if (snapToGrid) {
+					newWidth = Math.round(newWidth / 16) * 16;
+					newLeft = Math.max(0, compStartLeft + (compStartWidth - newWidth));
+				} else {
+					newLeft = Math.max(0, compStartLeft + deltaX);
+				}
+			}
+
+			// Vertical resizing
+			if (resizeHandle.includes('s')) {
+				newHeight = Math.max(36, compStartHeight + deltaY);
+				if (snapToGrid) newHeight = Math.round(newHeight / 16) * 16;
+			} else if (resizeHandle.includes('n')) {
+				newHeight = Math.max(36, compStartHeight - deltaY);
+				if (snapToGrid) {
+					newHeight = Math.round(newHeight / 16) * 16;
+					newTop = Math.max(0, compStartTop + (compStartHeight - newHeight));
+				} else {
+					newTop = Math.max(0, compStartTop + deltaY);
+				}
+			}
+
+			comp.props.width = newWidth;
+			comp.props.height = newHeight;
+			comp.props.left = newLeft;
+			comp.props.top = newTop;
+		}
+	}
+
+	function handleMouseUp() {
+		if (isDraggingComponent || isResizing) {
+			isDraggingComponent = false;
+			dragTargetCompId = null;
+			isResizing = false;
+			resizeTargetCompId = null;
+			resizeHandle = null;
+			debounceSaveProperty();
+		}
+		window.removeEventListener('mousemove', handleMouseMove);
+		window.removeEventListener('mouseup', handleMouseUp);
+	}
+
+	async function handleAddComponent(compType: string, customName?: string, datasourceConfig?: Record<string, unknown>, dropX?: number, dropY?: number) {
 		if (!activePage) return;
 		const def = allAvailableControls.find((c) => c.type === compType);
 		const name = customName || def?.name || 'Komponen Baru';
+
+		const count = activePage.components?.length || 0;
+		const left = typeof dropX === 'number' ? dropX : 24 + ((count % 3) * 32);
+		const top = typeof dropY === 'number' ? dropY : 24 + (count * 72);
+		const width = compType.includes('button') ? 160 :
+			compType.includes('badge') ? 120 :
+			compType.includes('switch') || compType.includes('checkbox') ? 180 :
+			compType.includes('grid') || compType.includes('table') ? 660 :
+			compType.includes('kanban') ? 660 :
+			compType.includes('chart') ? 500 :
+			compType.includes('input') || compType.includes('text-item') ? 320 : 360;
+		const height = compType.includes('button') || compType.includes('badge') ? 52 :
+			compType.includes('input') || compType.includes('text-item') ? 72 :
+			compType.includes('grid') || compType.includes('table') ? 240 :
+			compType.includes('kanban') ? 220 :
+			compType.includes('chart') ? 220 : 84;
 
 		try {
 			await createComponent({
@@ -245,7 +414,14 @@
 				region: 'main',
 				datasource_type: datasourceConfig ? 'table' : 'rpc',
 				datasource_config: datasourceConfig || {},
-				props: { title: name, catalogId: compType.replace('kit:', '') }
+				props: {
+					title: name,
+					catalogId: compType.replace('kit:', ''),
+					left,
+					top,
+					width,
+					height
+				}
 			});
 			await loadApp();
 		} catch (e) {
@@ -389,7 +565,7 @@
 		await createNewPage({
 			app_id: appId,
 			slug: `${base}_list_${timestamp}`,
-			title: `${tableName} — List`,
+			title: `${tableName} â€” List`,
 			layout: 'single',
 			group_name: groupName || 'Menu Utama',
 			parent_slug: null
@@ -403,7 +579,7 @@
 		await createNewPage({
 			app_id: appId,
 			slug: `${base}_create_${timestamp}`,
-			title: `${tableName} — Tambah`,
+			title: `${tableName} â€” Tambah`,
 			layout: 'single',
 			group_name: groupName || 'Menu Utama',
 			parent_slug: null
@@ -417,7 +593,7 @@
 		await createNewPage({
 			app_id: appId,
 			slug: `${base}_edit_${timestamp}`,
-			title: `${tableName} — Edit`,
+			title: `${tableName} â€” Edit`,
 			layout: 'single',
 			group_name: groupName || 'Menu Utama',
 			parent_slug: null
@@ -462,6 +638,16 @@
 					<button type="button" class="hover:text-slate-200">Edit</button>
 					<button type="button" class="hover:text-slate-200">View</button>
 					<button type="button" onclick={() => (showAddPageModal = true)} class="hover:text-emerald-400 font-semibold">+ Project</button>
+					<button
+						type="button"
+						onclick={() => activePage && handleDeletePage(activePage.id, activePage.title)}
+						disabled={!runtimeApp || runtimeApp.pages.length <= 1}
+						class="text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+						title="Hapus Form Aktif"
+					>
+						<Trash2 class="h-3 w-3" />
+						<span>Hapus Form</span>
+					</button>
 					<button type="button" class="hover:text-slate-200">Format</button>
 					<button type="button" class="hover:text-slate-200">Debug</button>
 					<button type="button" onclick={handleRunApp} class="hover:text-emerald-400 font-semibold">Run (F5)</button>
@@ -558,17 +744,19 @@
 							</option>
 						{/each}
 					</select>
-					<button
-						type="button"
-						onclick={() => activePage && handleDeletePage(activePage.id, activePage.title)}
-						disabled={!runtimeApp || runtimeApp.pages.length <= 1}
-						class="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-slate-400 hover:bg-rose-900/50 hover:text-rose-200 transition text-[11px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-						title={runtimeApp && runtimeApp.pages.length <= 1 ? "Minimal 1 form harus tetap ada" : "Hapus Form Aktif"}
-					>
-						<Trash2 class="h-3 w-3 text-rose-400" />
-						<span class="hidden lg:inline">Hapus Form</span>
-					</button>
 				</div>
+
+				<!-- Prominent Red Delete Form Button -->
+				<button
+					type="button"
+					onclick={() => activePage && handleDeletePage(activePage.id, activePage.title)}
+					disabled={!runtimeApp || runtimeApp.pages.length <= 1}
+					class="flex items-center gap-1.5 rounded-lg border border-rose-500/60 bg-rose-600 px-3 py-1 font-bold text-xs text-white shadow-md shadow-rose-600/30 hover:bg-rose-500 transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+					title="Hapus form aktif ini dari aplikasi"
+				>
+					<Trash2 class="h-3.5 w-3.5" />
+					<span>Hapus Form</span>
+				</button>
 			</div>
 
 			<!-- Right Status & Grid Options -->
@@ -766,11 +954,29 @@
 				<div class="flex items-center gap-2">
 					<Layout class="h-3.5 w-3.5 text-emerald-400" />
 					<span class="font-bold text-slate-200">Form Designer</span>
-					<span class="font-mono text-[10px] text-slate-500">[{activePage?.layout || 'single'}]</span>
+					<!-- Canvas Layout Mode Switcher -->
+					<div class="flex items-center rounded border border-slate-700 bg-slate-950 p-0.5 text-[10px]">
+						<button
+							type="button"
+							onclick={() => (canvasLayoutMode = 'vb')}
+							class="px-2 py-0.5 rounded font-bold transition {canvasLayoutMode === 'vb' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}"
+							title="Visual Basic Absolute Layout (Draggable & Resizable)"
+						>
+							📐 VB Free Form
+						</button>
+						<button
+							type="button"
+							onclick={() => (canvasLayoutMode = 'flow')}
+							class="px-2 py-0.5 rounded font-bold transition {canvasLayoutMode === 'flow' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}"
+							title="Vertical Flow Stack Layout"
+						>
+							☰ Flow Stack
+						</button>
+					</div>
 				</div>
-				<div class="flex items-center gap-1 font-mono text-[10px] text-slate-500">
-					<span>Grid:</span>
-					<span class="text-emerald-400">16x16 Dot Matrix</span>
+				<div class="flex items-center gap-2 font-mono text-[10px] text-slate-500">
+					<span>Snap:</span>
+					<span class="font-bold {snapToGrid ? 'text-emerald-400' : 'text-slate-500'}">{snapToGrid ? '16px Grid' : 'Off'}</span>
 				</div>
 			</div>
 
@@ -794,7 +1000,19 @@
 					const compType = e.dataTransfer?.getData('text/gobudibase-component');
 					const compName = e.dataTransfer?.getData('text/plain');
 					if (compType) {
-						handleAddComponent(compType, compName || compType);
+						const formCanvas = document.getElementById('vb-form-client-canvas');
+						let dropX = 24;
+						let dropY = 24;
+						if (formCanvas) {
+							const rect = formCanvas.getBoundingClientRect();
+							dropX = Math.max(16, e.clientX - rect.left);
+							dropY = Math.max(16, e.clientY - rect.top);
+							if (snapToGrid) {
+								dropX = Math.round(dropX / 16) * 16;
+								dropY = Math.round(dropY / 16) * 16;
+							}
+						}
+						handleAddComponent(compType, compName || compType, undefined, dropX, dropY);
 					}
 				}}
 			>
@@ -832,7 +1050,8 @@
 
 					<!-- Form Window Client Canvas (Authentic Dot Grid) -->
 					<div
-						class="min-h-[460px] p-5 relative overflow-y-auto"
+						id="vb-form-client-canvas"
+						class="min-h-[520px] p-5 relative overflow-auto"
 						style="background-image: radial-gradient(#334155 1.5px, transparent 1.5px); background-size: 16px 16px; background-color: rgba(15, 23, 42, 0.95);"
 					>
 						{#if !activePage?.components || activePage.components.length === 0}
@@ -879,46 +1098,102 @@
 								</div>
 							</div>
 						{:else}
-							<!-- Stack of Controls on Form -->
-							<div class="flex flex-col gap-3">
-								{#each activePage.components as comp}
+							<!-- Controls on Form (Visual Basic Freeform or Flow Stack) -->
+							<div class={canvasLayoutMode === 'vb' ? 'relative w-full min-h-[520px]' : 'flex flex-col gap-3'}>
+								{#each activePage.components as comp, idx}
 									{@const isSelected = selectedComponentId === comp.id}
+									{@const bounds = getCompBounds(comp, idx)}
 									<!-- Control Container with VB Selection Bounding Box Handles -->
 									<!-- svelte-ignore a11y_click_events_have_key_events -->
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
 									<div
-										class="relative rounded border bg-slate-950/80 p-3 transition cursor-pointer {isSelected ? 'border-emerald-400 ring-2 ring-emerald-500/20 shadow-xl' : 'border-slate-700/80 hover:border-slate-600'}"
+										class="rounded border bg-slate-950/90 select-none shadow-lg transition-shadow {canvasLayoutMode === 'vb' ? 'absolute' : 'relative p-3'} {isSelected ? 'border-emerald-400 ring-2 ring-emerald-500/30 z-30 shadow-2xl' : 'border-slate-700/80 hover:border-slate-600 z-10'}"
+										style={canvasLayoutMode === 'vb' ? `left: ${bounds.left}px; top: ${bounds.top}px; width: ${bounds.width}px; min-height: ${bounds.height}px;` : ''}
 										onclick={() => (selectedComponentId = comp.id)}
 									>
-										<!-- VB 8 Classic Grab Handles when selected -->
-										{#if isSelected}
-											<div class="absolute -top-1.5 -left-1.5 h-3 w-3 bg-white border border-black shadow"></div>
-											<div class="absolute -top-1.5 left-1/2 -translate-x-1/2 h-3 w-3 bg-white border border-black shadow"></div>
-											<div class="absolute -top-1.5 -right-1.5 h-3 w-3 bg-white border border-black shadow"></div>
-											<div class="absolute top-1/2 -left-1.5 -translate-y-1/2 h-3 w-3 bg-white border border-black shadow"></div>
-											<div class="absolute top-1/2 -right-1.5 -translate-y-1/2 h-3 w-3 bg-white border border-black shadow"></div>
-											<div class="absolute -bottom-1.5 -left-1.5 h-3 w-3 bg-white border border-black shadow"></div>
-											<div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-3 w-3 bg-white border border-black shadow"></div>
-											<div class="absolute -bottom-1.5 -right-1.5 h-3 w-3 bg-white border border-black shadow"></div>
+										<!-- VB 8 Classic Grab Handles when selected in VB mode -->
+										{#if isSelected && canvasLayoutMode === 'vb'}
+											<!-- NW -->
+											<div
+												class="absolute -top-1.5 -left-1.5 h-3 w-3 bg-white border border-slate-950 shadow cursor-nwse-resize z-40 hover:bg-emerald-400"
+												onmousedown={(e) => handleStartResize(e, comp, 'nw', idx)}
+												title="Resize NW"
+											></div>
+											<!-- N -->
+											<div
+												class="absolute -top-1.5 left-1/2 -translate-x-1/2 h-3 w-3 bg-white border border-slate-950 shadow cursor-ns-resize z-40 hover:bg-emerald-400"
+												onmousedown={(e) => handleStartResize(e, comp, 'n', idx)}
+												title="Resize N"
+											></div>
+											<!-- NE -->
+											<div
+												class="absolute -top-1.5 -right-1.5 h-3 w-3 bg-white border border-slate-950 shadow cursor-nesw-resize z-40 hover:bg-emerald-400"
+												onmousedown={(e) => handleStartResize(e, comp, 'ne', idx)}
+												title="Resize NE"
+											></div>
+											<!-- W -->
+											<div
+												class="absolute top-1/2 -left-1.5 -translate-y-1/2 h-3 w-3 bg-white border border-slate-950 shadow cursor-ew-resize z-40 hover:bg-emerald-400"
+												onmousedown={(e) => handleStartResize(e, comp, 'w', idx)}
+												title="Resize W"
+											></div>
+											<!-- E -->
+											<div
+												class="absolute top-1/2 -right-1.5 -translate-y-1/2 h-3 w-3 bg-white border border-slate-950 shadow cursor-ew-resize z-40 hover:bg-emerald-400"
+												onmousedown={(e) => handleStartResize(e, comp, 'e', idx)}
+												title="Resize E"
+											></div>
+											<!-- SW -->
+											<div
+												class="absolute -bottom-1.5 -left-1.5 h-3 w-3 bg-white border border-slate-950 shadow cursor-nesw-resize z-40 hover:bg-emerald-400"
+												onmousedown={(e) => handleStartResize(e, comp, 'sw', idx)}
+												title="Resize SW"
+											></div>
+											<!-- S -->
+											<div
+												class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-3 w-3 bg-white border border-slate-950 shadow cursor-ns-resize z-40 hover:bg-emerald-400"
+												onmousedown={(e) => handleStartResize(e, comp, 's', idx)}
+												title="Resize S"
+											></div>
+											<!-- SE -->
+											<div
+												class="absolute -bottom-1.5 -right-1.5 h-3 w-3 bg-white border border-slate-950 shadow cursor-nwse-resize z-40 hover:bg-emerald-400"
+												onmousedown={(e) => handleStartResize(e, comp, 'se', idx)}
+												title="Resize SE"
+											></div>
+
+											<!-- Realtime Coordinates Badge -->
+											<div class="absolute -bottom-6 left-0 bg-slate-900/95 text-emerald-400 font-mono text-[10px] px-2 py-0.5 rounded border border-slate-700 shadow pointer-events-none z-40 whitespace-nowrap">
+												X: {bounds.left}px &nbsp; Y: {bounds.top}px &nbsp; W: {bounds.width}px &nbsp; H: {bounds.height}px
+											</div>
 										{/if}
 
-										<!-- Control Header Bar -->
-										<div class="mb-2 flex items-center justify-between border-b border-slate-800/80 pb-1.5">
-											<div class="flex items-center gap-2">
-												<span class="rounded bg-emerald-500/20 px-1.5 py-0.2 font-mono text-[9px] font-bold text-emerald-400 uppercase border border-emerald-500/30">
+										<!-- Control Header Bar (Move Drag Handle) -->
+										<div
+											class="flex items-center justify-between border-b border-slate-800/80 px-2 py-1 bg-slate-900/80 select-none {canvasLayoutMode === 'vb' ? 'cursor-move' : ''}"
+											onmousedown={(e) => canvasLayoutMode === 'vb' && handleStartMove(e, comp, idx)}
+										>
+											<div class="flex items-center gap-1.5 overflow-hidden">
+												<span class="rounded bg-emerald-500/20 px-1 py-0.2 font-mono text-[9px] font-bold text-emerald-400 uppercase border border-emerald-500/30 whitespace-nowrap">
 													{comp.type}
 												</span>
-												<h5 class="text-xs font-bold text-slate-100">{comp.name}</h5>
+												<h5 class="text-xs font-bold text-slate-100 truncate">{comp.name}</h5>
 											</div>
-											<div class="flex items-center gap-2">
-												<span class="font-mono text-[9px] text-slate-500">Source: {comp.datasource_type}</span>
+											<div class="flex items-center gap-1.5">
+												{#if canvasLayoutMode === 'vb'}
+													<span class="font-mono text-[9px] text-slate-500 hidden sm:inline">
+														{bounds.left},{bounds.top}
+													</span>
+												{:else}
+													<span class="font-mono text-[9px] text-slate-500">Source: {comp.datasource_type}</span>
+												{/if}
 												<button
 													type="button"
 													onclick={(e) => {
 														e.stopPropagation();
 														handleDeleteComponent(comp.id);
 													}}
-													class="rounded p-1 text-slate-500 hover:bg-rose-950/60 hover:text-rose-400 transition"
+													class="rounded p-0.5 text-slate-500 hover:bg-rose-950/60 hover:text-rose-400 transition cursor-pointer"
 													title="Hapus kontrol dari Form"
 												>
 													<Trash2 class="h-3 w-3" />
@@ -927,12 +1202,12 @@
 										</div>
 
 										<!-- Wireframe Simulation inside Form -->
-										<div class="rounded border border-slate-800/60 bg-slate-900/60 p-3">
+										<div class="p-2.5">
 											{#if comp.type === 'interactive_grid'}
 												<div class="flex flex-col gap-1.5">
 													<div class="flex items-center justify-between text-xs">
 														<span class="font-semibold text-slate-300">Data Grid [100k Records]</span>
-														<span class="font-mono text-[9px] text-emerald-400">Sort • Filter • Inline Edit</span>
+														<span class="font-mono text-[9px] text-emerald-400">Sort â€¢ Filter â€¢ Inline Edit</span>
 													</div>
 													<div class="h-14 rounded bg-slate-950 border border-slate-800 flex items-center justify-center font-mono text-[10px] text-slate-500">
 														[ InteractiveGrid Control ]
@@ -947,13 +1222,13 @@
 											{:else if comp.type === 'shuttle'}
 												<div class="grid grid-cols-5 gap-1.5 items-center">
 													<div class="col-span-2 rounded bg-slate-950 border border-slate-800 p-1.5 text-[9px] text-slate-400 text-center">Tersedia</div>
-													<div class="col-span-1 text-center text-amber-400 font-bold text-xs">⇄</div>
+													<div class="col-span-1 text-center text-amber-400 font-bold text-xs">â‡„</div>
 													<div class="col-span-2 rounded bg-slate-950 border border-amber-900/40 p-1.5 text-[9px] text-amber-300 text-center">Terpilih</div>
 												</div>
 											{:else if comp.type === 'popup_lov'}
 												<div class="flex items-center justify-between rounded bg-slate-950 border border-slate-800 p-2 text-xs text-slate-300 font-mono">
 													<span>[Lookup Dialog Foreign Key]</span>
-													<span class="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] text-cyan-400 font-bold">🔍 Cari</span>
+													<span class="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] text-cyan-400 font-bold">ðŸ” Cari</span>
 												</div>
 											{:else if comp.type === 'button' || comp.type === 'kit:button'}
 												<div class="flex items-center py-1">
@@ -983,7 +1258,7 @@
 												</div>
 											{:else if comp.type === 'checkbox' || comp.type === 'kit:checkbox'}
 												<div class="flex items-center gap-2 py-1 text-xs text-slate-200">
-													<div class="h-4 w-4 rounded border border-slate-700 bg-slate-950 flex items-center justify-center text-emerald-400 font-bold text-[10px]">✓</div>
+													<div class="h-4 w-4 rounded border border-slate-700 bg-slate-950 flex items-center justify-center text-emerald-400 font-bold text-[10px]">âœ“</div>
 													<span>{comp.props?.title || comp.name}</span>
 												</div>
 											{:else if comp.type === 'switch' || comp.type === 'kit:switch'}
@@ -995,7 +1270,7 @@
 												</div>
 											{:else if comp.type === 'alert' || comp.type === 'kit:alert'}
 												<div class="flex items-center gap-2 rounded bg-amber-950/20 border border-amber-500/30 p-2 text-xs text-amber-200">
-													<span class="font-bold">⚠️ {comp.props?.title || comp.name}</span>
+													<span class="font-bold">âš ï¸ {comp.props?.title || comp.name}</span>
 												</div>
 										{:else if comp.type === 'data_provider'}
 											<div class="rounded border border-purple-800/50 bg-purple-950/20 p-2 text-xs text-purple-300 flex items-center justify-between">
@@ -1008,8 +1283,8 @@
 										{:else if comp.type === 'table_block'}
 											<div class="flex flex-col gap-1 rounded border border-purple-800/40 bg-slate-950 p-2">
 												<div class="flex items-center justify-between text-[11px]">
-													<span class="font-bold text-slate-200">⚡ Table Block: {comp.props?.title || comp.name}</span>
-													<span class="font-mono text-[9px] text-purple-400">Search • Sort • Paginate • CRUD</span>
+													<span class="font-bold text-slate-200">âš¡ Table Block: {comp.props?.title || comp.name}</span>
+													<span class="font-mono text-[9px] text-purple-400">Search â€¢ Sort â€¢ Paginate â€¢ CRUD</span>
 												</div>
 												<div class="grid grid-cols-4 gap-1 text-[9px] text-slate-500 font-mono border-t border-slate-800 pt-1">
 													<span>id</span><span>name</span><span>status</span><span>[actions]</span>
@@ -1018,7 +1293,7 @@
 										{:else if comp.type === 'form_block'}
 											<div class="flex flex-col gap-1.5 rounded border border-purple-800/40 bg-slate-950 p-2">
 												<div class="flex items-center justify-between text-[11px]">
-													<span class="font-bold text-purple-300">📝 Form Block: {comp.props?.title || comp.name}</span>
+													<span class="font-bold text-purple-300">ðŸ“ Form Block: {comp.props?.title || comp.name}</span>
 													<span class="rounded bg-purple-900/50 px-1 py-0.2 text-[9px] text-purple-200 font-mono uppercase">{comp.datasource_config?.mode || 'create'}</span>
 												</div>
 												<div class="grid grid-cols-2 gap-1 text-[10px] text-slate-400">
@@ -1035,7 +1310,7 @@
 										{:else if comp.type === 'chart_block'}
 											<div class="flex flex-col gap-1 rounded border border-purple-800/40 bg-slate-950 p-2">
 												<div class="flex items-center justify-between text-[11px]">
-													<span class="font-bold text-slate-200">📊 Chart Block: {comp.props?.title || comp.name}</span>
+													<span class="font-bold text-slate-200">ðŸ“Š Chart Block: {comp.props?.title || comp.name}</span>
 													<span class="font-mono text-[9px] text-purple-400">Bar / Donut</span>
 												</div>
 												<div class="flex items-end gap-1 h-8 pt-1">
@@ -1065,36 +1340,38 @@
 									</div>
 								{/each}
 
-								<!-- Drop / Add Next Control Strip -->
-								<div class="flex items-center justify-between rounded border border-dashed border-slate-700/80 p-2 text-slate-500 text-xs hover:border-slate-600 transition">
-									<div class="flex items-center gap-1.5">
-										<Plus class="h-3.5 w-3.5 text-emerald-400" />
-										<span>Tarik kontrol ke sini untuk menambah</span>
+								{#if canvasLayoutMode === 'flow'}
+									<!-- Drop / Add Next Control Strip in Flow mode -->
+									<div class="flex items-center justify-between rounded border border-dashed border-slate-700/80 p-2 text-slate-500 text-xs hover:border-slate-600 transition">
+										<div class="flex items-center gap-1.5">
+											<Plus class="h-3.5 w-3.5 text-emerald-400" />
+											<span>Tarik kontrol ke sini untuk menambah</span>
+										</div>
+										<div class="flex items-center gap-1">
+											<button
+												type="button"
+												onclick={() => handleAddComponent('button', 'Tombol Aksi')}
+												class="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-emerald-300 hover:bg-emerald-600 hover:text-white transition font-semibold"
+											>
+												+ Button
+											</button>
+											<button
+												type="button"
+												onclick={() => handleAddComponent('interactive_grid', 'Grid Baru')}
+												class="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-emerald-600 hover:text-white transition"
+											>
+												+ Grid
+											</button>
+											<button
+												type="button"
+												onclick={() => handleAddComponent('kanban', 'Kanban Baru')}
+												class="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-purple-600 hover:text-white transition"
+											>
+												+ Kanban
+											</button>
+										</div>
 									</div>
-									<div class="flex items-center gap-1">
-										<button
-											type="button"
-											onclick={() => handleAddComponent('button', 'Tombol Aksi')}
-											class="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-emerald-300 hover:bg-emerald-600 hover:text-white transition font-semibold"
-										>
-											+ Button
-										</button>
-										<button
-											type="button"
-											onclick={() => handleAddComponent('interactive_grid', 'Grid Baru')}
-											class="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-emerald-600 hover:text-white transition"
-										>
-											+ Grid
-										</button>
-										<button
-											type="button"
-											onclick={() => handleAddComponent('kanban', 'Kanban Baru')}
-											class="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-purple-600 hover:text-white transition"
-										>
-											+ Kanban
-										</button>
-									</div>
-								</div>
+								{/if}
 							</div>
 						{/if}
 					</div>
@@ -1166,7 +1443,7 @@
 														class="flex items-center gap-1.5 truncate flex-1 text-left"
 													>
 														{#if isSubMenu}
-															<span class="text-teal-400 font-bold text-[10px]">↳</span>
+															<span class="text-teal-400 font-bold text-[10px]">â†³</span>
 														{/if}
 														<FileText class="h-3 w-3 shrink-0 {isSubMenu ? 'text-teal-400' : 'text-slate-400'}" />
 														<span class="truncate">frm_{pg.slug}</span>
@@ -1180,7 +1457,7 @@
 																	e.stopPropagation();
 																	handleDeletePage(pg.id, pg.title);
 																}}
-																class="opacity-0 group-hover/formitem:opacity-100 hover:text-rose-300 p-0.5 rounded transition text-slate-400 hover:bg-rose-900/60 cursor-pointer"
+																class="p-1 rounded transition text-rose-400/80 hover:text-white hover:bg-rose-600 cursor-pointer"
 																title="Hapus Form {pg.title}"
 															>
 																<Trash2 class="h-3 w-3" />
@@ -1199,7 +1476,7 @@
 																onclick={() => (selectedComponentId = comp.id)}
 																class="flex items-center gap-1 rounded px-1.5 py-0.5 text-left text-[10px] transition {isCompSelected ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'}"
 															>
-																<span class="text-slate-500">•</span>
+																<span class="text-slate-500">â€¢</span>
 																<span class="truncate">{comp.name}</span>
 															</button>
 														{/each}
@@ -1323,6 +1600,106 @@
 												if (e.key === 'Enter') handleSaveComponentProperty();
 											}}
 											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+										/>
+									</td>
+								</tr>
+
+								<!-- Left Property (Posisi X) -->
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<tr
+									class="border-b border-slate-800/80 hover:bg-slate-800/40"
+									onclick={() => (activePropertyHelp = { title: 'Left', desc: 'Jarak posisi horizontal kontrol dari tepi kiri form (dalam pixel).' })}
+								>
+									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+										Left
+									</td>
+									<td class="px-2 py-1">
+										<input
+											type="number"
+											value={typeof selectedComponent.props?.left === 'number' ? selectedComponent.props.left : 24}
+											oninput={(e) => {
+												if (!selectedComponent.props) selectedComponent.props = {};
+												selectedComponent.props.left = Number(e.currentTarget.value);
+												debounceSaveProperty();
+											}}
+											onblur={handleSaveComponentProperty}
+											class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+										/>
+									</td>
+								</tr>
+
+								<!-- Top Property (Posisi Y) -->
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<tr
+									class="border-b border-slate-800/80 hover:bg-slate-800/40"
+									onclick={() => (activePropertyHelp = { title: 'Top', desc: 'Jarak posisi vertikal kontrol dari tepi atas form (dalam pixel).' })}
+								>
+									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+										Top
+									</td>
+									<td class="px-2 py-1">
+										<input
+											type="number"
+											value={typeof selectedComponent.props?.top === 'number' ? selectedComponent.props.top : 24}
+											oninput={(e) => {
+												if (!selectedComponent.props) selectedComponent.props = {};
+												selectedComponent.props.top = Number(e.currentTarget.value);
+												debounceSaveProperty();
+											}}
+											onblur={handleSaveComponentProperty}
+											class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+										/>
+									</td>
+								</tr>
+
+								<!-- Width Property (Panjang / Lebar) -->
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<tr
+									class="border-b border-slate-800/80 hover:bg-slate-800/40"
+									onclick={() => (activePropertyHelp = { title: 'Width', desc: 'Lebar ukuran kontrol pada form (dalam pixel).' })}
+								>
+									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+										Width
+									</td>
+									<td class="px-2 py-1">
+										<input
+											type="number"
+											value={typeof selectedComponent.props?.width === 'number' ? selectedComponent.props.width : 240}
+											oninput={(e) => {
+												if (!selectedComponent.props) selectedComponent.props = {};
+												selectedComponent.props.width = Number(e.currentTarget.value);
+												debounceSaveProperty();
+											}}
+											onblur={handleSaveComponentProperty}
+											class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+										/>
+									</td>
+								</tr>
+
+								<!-- Height Property (Tinggi) -->
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<tr
+									class="border-b border-slate-800/80 hover:bg-slate-800/40"
+									onclick={() => (activePropertyHelp = { title: 'Height', desc: 'Tinggi ukuran kontrol pada form (dalam pixel).' })}
+								>
+									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+										Height
+									</td>
+									<td class="px-2 py-1">
+										<input
+											type="number"
+											value={typeof selectedComponent.props?.height === 'number' ? selectedComponent.props.height : 48}
+											oninput={(e) => {
+												if (!selectedComponent.props) selectedComponent.props = {};
+												selectedComponent.props.height = Number(e.currentTarget.value);
+												debounceSaveProperty();
+											}}
+											onblur={handleSaveComponentProperty}
+											class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
 										/>
 									</td>
 								</tr>
@@ -1600,7 +1977,7 @@
 								<!-- svelte-ignore a11y_no_static_element_interactions -->
 								<tr
 									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Layout', desc: 'Susunan tata letak kontrol form: single (1 kolom bertumpuk) atau split-2 (2 kolom grid).' })}
+									onclick={() => (activePropertyHelp = { title: 'Layout', desc: 'Susunan tata letak kontrol form: free (Visual Basic Freeform Canvas), single (1 kolom bertumpuk), atau split-2 (2 kolom grid).' })}
 								>
 									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
 										Layout
@@ -1611,6 +1988,7 @@
 											onchange={handleSavePageProperty}
 											class="w-full bg-slate-950 text-emerald-400 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer text-xs"
 										>
+											<option value="free">free (Visual Basic Freeform)</option>
 											<option value="single">single (1 Kolom Stacked)</option>
 											<option value="split-2">split-2 (2 Kolom Grid)</option>
 										</select>
@@ -1660,7 +2038,7 @@
 											<option value={null}>(None - Top Level Menu)</option>
 											{#each runtimeApp?.pages.filter((p) => p.slug !== activePage?.slug && !p.parent_slug) || [] as parentCandidate}
 												<option value={parentCandidate.slug}>
-													↳ {parentCandidate.title} ({parentCandidate.slug})
+													â†³ {parentCandidate.title} ({parentCandidate.slug})
 												</option>
 											{/each}
 										</select>
@@ -1698,6 +2076,26 @@
 								</tr>
 							</tbody>
 						</table>
+
+						<!-- Prominent Form Action Box in Properties Window -->
+						<div class="m-2 p-3 rounded-xl border border-rose-800/60 bg-rose-950/25 flex flex-col gap-2">
+							<div class="flex items-center gap-1.5 text-rose-300 font-bold text-xs">
+								<Trash2 class="h-4 w-4 text-rose-400" />
+								<span>Aksi Form</span>
+							</div>
+							<p class="text-[10px] text-slate-400 leading-normal">
+								Hapus form "{activePage?.title}" (frm_{activePage?.slug}) beserta seluruh kontrol di dalamnya secara permanen.
+							</p>
+							<button
+								type="button"
+								onclick={() => activePage && handleDeletePage(activePage.id, activePage.title)}
+								disabled={!runtimeApp || runtimeApp.pages.length <= 1}
+								class="flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 py-2 font-bold text-xs text-white shadow hover:bg-rose-500 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+							>
+								<Trash2 class="h-3.5 w-3.5" />
+								<span>Hapus Form Ini</span>
+							</button>
+						</div>
 					{/if}
 				</div>
 
@@ -1713,7 +2111,7 @@
 	<!-- 3. VISUAL BASIC STATUS BAR (Bottom) -->
 	<footer class="h-6 px-3 flex items-center justify-between border-t border-slate-800 bg-slate-900/90 text-[10px] font-mono text-slate-400 select-none">
 		<div class="flex items-center gap-4">
-			<span class="text-emerald-400 font-semibold">● Ready</span>
+			<span class="text-emerald-400 font-semibold">â— Ready</span>
 			<span>Form: frm_{activePage?.slug || 'page'}</span>
 			<span>Selected: {selectedComponent ? `${selectedComponent.name} [${selectedComponent.type}]` : 'Form Canvas'}</span>
 		</div>
@@ -1744,14 +2142,14 @@
 					onclick={() => (wizardMode = 'blank')}
 					class="flex-1 py-1.5 transition {wizardMode === 'blank' ? 'bg-emerald-700 text-white' : 'bg-slate-950 text-slate-400 hover:text-slate-200'}"
 				>
-					📄 Blank Page
+					ðŸ“„ Blank Page
 				</button>
 				<button
 					type="button"
 					onclick={() => (wizardMode = 'auto-crud')}
 					class="flex-1 py-1.5 transition {wizardMode === 'auto-crud' ? 'bg-purple-700 text-white' : 'bg-slate-950 text-slate-400 hover:text-slate-200'}"
 				>
-					⚡ Auto-CRUD Wizard
+					âš¡ Auto-CRUD Wizard
 				</button>
 			</div>
 
@@ -1759,7 +2157,7 @@
 				<!-- Auto-CRUD Wizard -->
 				<div class="flex flex-col gap-3 text-xs">
 					<div class="rounded-lg border border-purple-800/40 bg-purple-950/20 p-3 text-purple-300 text-[11px] leading-relaxed">
-						⚡ Pilih tabel → otomatis buat 3 page: <strong>List</strong>, <strong>Tambah</strong>, <strong>Edit</strong> + komponen block terpasang.
+						âš¡ Pilih tabel â†’ otomatis buat 3 page: <strong>List</strong>, <strong>Tambah</strong>, <strong>Edit</strong> + komponen block terpasang.
 					</div>
 					<div class="flex flex-col gap-1">
 						<label class="font-semibold text-slate-300">Pilih Tabel</label>
@@ -1789,7 +2187,7 @@
 							disabled={!wizardTable}
 							onclick={async () => { showAddPageModal = false; await handleAutoCrud(wizardTable, newPageGroup); wizardTable = ''; }}
 							class="rounded bg-purple-600 px-4 py-1.5 font-bold text-white shadow-lg shadow-purple-600/30 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-						>⚡ Generate 3 Pages</button>
+						>âš¡ Generate 3 Pages</button>
 					</div>
 				</div>
 			{:else}
@@ -1825,9 +2223,10 @@
 						bind:value={newPageLayout}
 						class="rounded border border-slate-800 bg-slate-950 px-2 py-2 text-slate-200 focus:border-emerald-500 focus:outline-none cursor-pointer"
 					>
-						<option value="single">Single Column</option>
-						<option value="split-2">Split 2 Columns</option>
-						<option value="dashboard-4">Dashboard 4 Widgets</option>
+						<option value="free">free (Visual Basic Freeform Canvas)</option>
+						<option value="single">single (1 Kolom Stacked)</option>
+						<option value="split-2">split-2 (2 Kolom Grid)</option>
+						<option value="dashboard-4">dashboard-4 (4 Widgets)</option>
 					</select>
 				</div>
 
@@ -1858,7 +2257,7 @@
 					>
 						<option value={null}>(None - Top Level Menu)</option>
 						{#each runtimeApp?.pages.filter((p) => !p.parent_slug) || [] as p}
-							<option value={p.slug}>↳ {p.title} ({p.slug})</option>
+							<option value={p.slug}>â†³ {p.title} ({p.slug})</option>
 						{/each}
 					</select>
 				</div>
