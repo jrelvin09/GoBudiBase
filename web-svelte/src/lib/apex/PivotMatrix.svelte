@@ -4,6 +4,12 @@
 	import { Table, RefreshCw, Layers, SlidersHorizontal, Filter, FileSpreadsheet } from 'lucide-svelte';
 	import * as XLSX from 'xlsx';
 
+	let {
+		title = 'Dynamic Pivot Matrix (Go + Svelte 5 Parity)'
+	}: {
+		title?: string;
+	} = $props();
+
 	let rowDim = $state('category');
 	let colDim = $state('status');
 	let metric = $state('sum_value');
@@ -68,7 +74,7 @@
 				<Table class="w-5 h-5" />
 			</div>
 			<div>
-				<h2 class="font-bold text-base text-slate-800">Dynamic Pivot Matrix (Go + Svelte 5 Parity)</h2>
+				<h2 class="font-bold text-base text-slate-800">{title}</h2>
 				<p class="text-xs text-slate-500">Kalkulasi 2D cross-tab dihitung dalam sub-5ms oleh Go native daemon</p>
 			</div>
 		</div>

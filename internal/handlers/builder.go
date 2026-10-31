@@ -213,6 +213,44 @@ func HandleDeleteBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
 	}
 }
 
+type UpdatePageReq struct {
+	PageID int    `json:"page_id"`
+	Title  string `json:"title"`
+	Slug   string `json:"slug"`
+	Icon   string `json:"icon"`
+	Layout string `json:"layout"`
+}
+
+func HandleUpdateBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req UpdatePageReq
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if req.Layout == "" {
+			req.Layout = "single"
+		}
+		if req.Icon == "" {
+			req.Icon = "FileText"
+		}
+
+		query := `
+			UPDATE builder.pages
+			SET title = $2, slug = $3, icon = $4, layout = $5
+			WHERE id = $1
+		`
+		_, err := pool.Exec(r.Context(), query, req.PageID, req.Title, req.Slug, req.Icon, req.Layout)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+	}
+}
+
 // ============================================================================
 // 4. COMPONENTS MANAGEMENT
 // ============================================================================

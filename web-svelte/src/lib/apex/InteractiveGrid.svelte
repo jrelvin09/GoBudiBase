@@ -15,6 +15,12 @@
 		Search
 	} from 'lucide-svelte';
 
+	let {
+		title = 'Interactive Grid (Svelte 5 Runes + Go Native)'
+	}: {
+		title?: string;
+	} = $props();
+
 	let rows = $state<RegistryItem[]>([]);
 	let total = $state(0);
 	let limit = $state(50);
@@ -120,7 +126,7 @@
 				<TableProperties class="w-5 h-5" />
 			</div>
 			<div>
-				<h2 class="font-bold text-base text-slate-800">Interactive Grid (Svelte 5 Runes + Go Native)</h2>
+				<h2 class="font-bold text-base text-slate-800">{title}</h2>
 				<p class="text-xs text-slate-500">Virtual dataset 100k baris dengan single-cell edit & batch update atomik</p>
 			</div>
 		</div>

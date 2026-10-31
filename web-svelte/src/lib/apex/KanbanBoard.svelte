@@ -18,6 +18,12 @@
 		{ status: 'Rusak Berat', label: 'Afkir / Rusak Berat', color: 'bg-rose-500/10 text-rose-400', borderColor: 'border-rose-500/30', icon: AlertOctagon }
 	];
 
+	let {
+		title = 'Enterprise Kanban Workflow'
+	}: {
+		title?: string;
+	} = $props();
+
 	let items = $state<RegistryItem[]>([]);
 	let loading = $state(false);
 	let updatingId = $state<number | null>(null);
@@ -67,7 +73,7 @@
 			</div>
 			<div>
 				<h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-					<span>Enterprise Kanban Workflow</span>
+					<span>{title}</span>
 					<span class="rounded bg-emerald-500/20 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-300">
 						LIVE SYNC
 					</span>

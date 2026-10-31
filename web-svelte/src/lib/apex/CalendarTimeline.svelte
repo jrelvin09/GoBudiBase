@@ -13,6 +13,12 @@
 		Layers
 	} from 'lucide-svelte';
 
+	let {
+		title = 'Jalur Waktu SLA & Pemeliharaan'
+	}: {
+		title?: string;
+	} = $props();
+
 	let events = $state<CalendarEvent[]>([]);
 	let loading = $state(false);
 	let viewMode = $state<'calendar' | 'timeline'>('timeline');
@@ -127,7 +133,7 @@
 		<div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl backdrop-blur">
 			<div class="mb-4 flex items-center justify-between border-b border-slate-800 pb-3">
 				<div>
-					<h3 class="text-sm font-bold text-slate-100 uppercase tracking-wider">Jalur Waktu SLA & Pemeliharaan</h3>
+					<h3 class="text-sm font-bold text-slate-100 uppercase tracking-wider">{title}</h3>
 					<p class="text-xs text-slate-400">Visualisasi rentang durasi tiket aset per kuartal berjalan</p>
 				</div>
 				<span class="rounded bg-slate-800 px-2.5 py-1 text-xs font-mono text-emerald-400">

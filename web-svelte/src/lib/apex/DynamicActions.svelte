@@ -3,6 +3,12 @@
 	import { postRPC, type DynamicActionRule } from '$lib/api/client';
 	import { Zap, Play, Terminal, Clock, Sparkles, Layers, RotateCcw } from 'lucide-svelte';
 
+	let {
+		title = 'Declarative Dynamic Actions Engine (Go + Svelte 5)'
+	}: {
+		title?: string;
+	} = $props();
+
 	let rules = $state<DynamicActionRule[]>([]);
 	let loadingRules = $state(false);
 
@@ -95,7 +101,7 @@
 				<Zap class="w-5 h-5" />
 			</div>
 			<div>
-				<h2 class="font-bold text-base text-slate-800">Declarative Dynamic Actions Engine (Go + Svelte 5)</h2>
+				<h2 class="font-bold text-base text-slate-800">{title}</h2>
 				<p class="text-xs text-slate-500">Aturan deklaratif event-driven: Triggers &bull; Conditions &bull; Client Updates &bull; Server RPC</p>
 			</div>
 		</div>

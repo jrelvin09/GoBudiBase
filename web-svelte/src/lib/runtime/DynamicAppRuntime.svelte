@@ -28,9 +28,11 @@
 
 	let {
 		appSlug = 'bmn-enterprise',
+		initialPageSlug = '',
 		onOpenStudio
 	}: {
 		appSlug?: string;
+		initialPageSlug?: string;
 		onOpenStudio?: () => void;
 	} = $props();
 
@@ -53,7 +55,8 @@
 			const data = await fetchRuntimeApp(appSlug);
 			runtimeApp = data;
 			if (data.pages && data.pages.length > 0) {
-				const homePage = data.pages.find((p) => p.is_home) || data.pages[0];
+				const preferredPage = initialPageSlug ? data.pages.find((p) => p.slug === initialPageSlug) : null;
+				const homePage = preferredPage || data.pages.find((p) => p.is_home) || data.pages[0];
 				activePageSlug = homePage.slug;
 			}
 		} catch (e: any) {
@@ -62,6 +65,12 @@
 			loading = false;
 		}
 	}
+
+	$effect(() => {
+		if (initialPageSlug && runtimeApp?.pages?.some((p) => p.slug === initialPageSlug)) {
+			activePageSlug = initialPageSlug;
+		}
+	});
 
 	onMount(() => {
 		loadRuntime();
@@ -187,25 +196,25 @@
 						{#each activePage.components as comp}
 							<div class="w-full">
 								{#if comp.type === 'interactive_grid'}
-									<InteractiveGrid />
+									<InteractiveGrid title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'kanban_board' || comp.type === 'kanban'}
-									<KanbanBoard />
+									<KanbanBoard title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'shuttle_selector' || comp.type === 'shuttle'}
-									<ShuttleSelector />
+									<ShuttleSelector title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'popup_lov'}
-									<PopupLovDemo />
+									<PopupLovDemo title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'pivot_matrix'}
-									<PivotMatrix />
+									<PivotMatrix title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'calendar_timeline'}
-									<CalendarTimeline />
+									<CalendarTimeline title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'asset_map'}
-									<AssetMapView />
+									<AssetMapView title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'tree_view'}
-									<TreeView />
+									<TreeView title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'faceted_search'}
 									<FacetedSearch />
 								{:else if comp.type === 'dynamic_actions'}
-									<DynamicActions />
+									<DynamicActions title={comp.props?.title || comp.name} />
 								{:else if comp.type.startsWith('kit:') || catalog.some(c => c.id === comp.type)}
 									{@const kitId = comp.type.startsWith('kit:') ? comp.type.slice(4) : comp.type}
 									{@const entry = catalog.find((c) => c.id === kitId)}
@@ -215,7 +224,7 @@
 												<span class="rounded bg-indigo-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-indigo-400 border border-indigo-500/20 uppercase">
 													{entry?.tier || 'UI KIT'}
 												</span>
-												<h3 class="text-xs font-bold text-slate-100">{comp.name}</h3>
+												<h3 class="text-xs font-bold text-slate-100">{comp.props?.title || comp.name}</h3>
 											</div>
 											<span class="font-mono text-[10px] text-slate-500">{kitId}</span>
 										</div>
@@ -223,7 +232,7 @@
 											{#await entry.load()}
 												<div class="flex h-28 items-center justify-center text-xs text-slate-500">
 													<div class="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent mr-2"></div>
-													<span>Memuat {comp.name}...</span>
+													<span>Memuat {comp.props?.title || comp.name}...</span>
 												</div>
 											{:then loaded}
 												{@const DemoComp = loaded.default}
@@ -237,7 +246,7 @@
 											{/await}
 										{:else}
 											<div class="text-xs text-slate-400">
-												[ Region Komponen: {comp.name} ]
+												[ Region Komponen: {comp.props?.title || comp.name} ]
 											</div>
 										{/if}
 									</div>
@@ -251,28 +260,28 @@
 						{#each activePage.components as comp}
 							<div class="w-full">
 								{#if comp.type === 'interactive_grid'}
-									<InteractiveGrid />
+									<InteractiveGrid title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'kanban_board' || comp.type === 'kanban'}
-									<KanbanBoard />
+									<KanbanBoard title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'shuttle_selector' || comp.type === 'shuttle'}
-									<ShuttleSelector />
+									<ShuttleSelector title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'popup_lov'}
-									<PopupLovDemo />
+									<PopupLovDemo title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'pivot_matrix'}
-									<PivotMatrix />
+									<PivotMatrix title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'calendar_timeline'}
-									<CalendarTimeline />
+									<CalendarTimeline title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'asset_map'}
-									<AssetMapView />
+									<AssetMapView title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'tree_view'}
 									<div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-										<TreeView />
+										<TreeView title={comp.props?.title || comp.name} />
 										<FacetedSearch />
 									</div>
 								{:else if comp.type === 'faceted_search'}
 									<FacetedSearch />
 								{:else if comp.type === 'dynamic_actions'}
-									<DynamicActions />
+									<DynamicActions title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'signature_bast'}
 									<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 										<!-- Left Form -->
@@ -354,7 +363,7 @@
 												<span class="rounded bg-indigo-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-indigo-400 border border-indigo-500/20 uppercase">
 													{entry?.tier || 'UI KIT'}
 												</span>
-												<h3 class="text-sm font-bold text-slate-100">{comp.name}</h3>
+												<h3 class="text-sm font-bold text-slate-100">{comp.props?.title || comp.name}</h3>
 											</div>
 											<span class="font-mono text-[10px] text-slate-500">{kitId}</span>
 										</div>
@@ -362,7 +371,7 @@
 											{#await entry.load()}
 												<div class="flex h-32 items-center justify-center text-xs text-slate-500">
 													<div class="h-5 w-5 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent mr-2"></div>
-													<span>Memuat komponen {comp.name}...</span>
+													<span>Memuat komponen {comp.props?.title || comp.name}...</span>
 												</div>
 											{:then loaded}
 												{@const DemoComp = loaded.default}

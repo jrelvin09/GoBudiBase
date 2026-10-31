@@ -77,6 +77,7 @@ func main() {
 			r.Post("/apps/create", handlers.HandleCreateBuilderApp(pool))
 
 			r.Post("/pages/create", handlers.HandleCreateBuilderPage(pool))
+			r.Post("/pages/update", handlers.HandleUpdateBuilderPage(pool))
 			r.Post("/pages/delete", handlers.HandleDeleteBuilderPage(pool))
 
 			r.Post("/components/create", handlers.HandleCreateBuilderComponent(pool))

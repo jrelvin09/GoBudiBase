@@ -18,6 +18,7 @@
 
 	let currentMode = $state<MainMode>('runtime');
 	let activeAppSlug = $state<string>('bmn-enterprise');
+	let targetPageSlug = $state<string>('');
 
 	function handleOpenDesigner(slug: string) {
 		activeAppSlug = slug;
@@ -93,6 +94,7 @@
 		{#if currentMode === 'runtime'}
 			<DynamicAppRuntime
 				appSlug={activeAppSlug}
+				initialPageSlug={targetPageSlug}
 				onOpenStudio={() => {
 					currentMode = 'studio_designer';
 				}}
@@ -103,7 +105,10 @@
 			<PageDesigner
 				appSlug={activeAppSlug}
 				onBack={() => (currentMode = 'studio_apps')}
-				onRun={() => (currentMode = 'runtime')}
+				onRun={(slug?: string) => {
+					if (slug) targetPageSlug = slug;
+					currentMode = 'runtime';
+				}}
 			/>
 		{:else if currentMode === 'sql_studio'}
 			<SqlStudio />

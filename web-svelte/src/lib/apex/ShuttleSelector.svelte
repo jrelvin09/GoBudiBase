@@ -9,6 +9,12 @@
 		name: string;
 	}
 
+	let {
+		title = 'Oracle APEX Shuttle Selector'
+	}: {
+		title?: string;
+	} = $props();
+
 	let available = $state<ShuttleItem[]>([]);
 	let selected = $state<ShuttleItem[]>([]);
 	let selectedAvailIds = $state<number[]>([]);
@@ -71,7 +77,7 @@
 			</div>
 			<div>
 				<h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-					<span>Oracle APEX Shuttle Selector</span>
+					<span>{title}</span>
 					<span class="rounded bg-teal-500/20 px-2 py-0.5 font-mono text-[10px] font-semibold text-teal-300">
 						DUAL LISTBOX
 					</span>

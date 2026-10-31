@@ -3,6 +3,12 @@
 	import { postRPC, type MapBuilding } from '$lib/api/client';
 	import { MapPin, Building2, Search, RefreshCw, DollarSign, Layers, ExternalLink } from 'lucide-svelte';
 
+	let {
+		title = 'Peta GIS Kampus & Gedung Aset'
+	}: {
+		title?: string;
+	} = $props();
+
 	let buildings = $state<MapBuilding[]>([]);
 	let loading = $state(false);
 	let searchTerm = $state('');
@@ -50,7 +56,7 @@
 					<MapPin class="h-5 w-5" />
 				</div>
 				<div>
-					<h3 class="text-sm font-bold text-slate-100 uppercase tracking-wider">Peta GIS Kampus & Gedung Aset</h3>
+					<h3 class="text-sm font-bold text-slate-100 uppercase tracking-wider">{title}</h3>
 					<p class="text-xs text-slate-400">Distribusi aset fisik terdaftar pada koordinat spasial</p>
 				</div>
 			</div>

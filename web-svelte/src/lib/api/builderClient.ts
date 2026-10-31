@@ -120,6 +120,21 @@ export async function deletePage(page_id: number): Promise<void> {
 	if (!res.ok) throw new Error(await res.text());
 }
 
+export async function updatePage(data: {
+	page_id: number;
+	title: string;
+	slug?: string;
+	icon?: string;
+	layout?: string;
+}): Promise<void> {
+	const res = await fetch(`${API_BUILDER}/pages/update`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data)
+	});
+	if (!res.ok) throw new Error(await res.text());
+}
+
 export async function createComponent(data: {
 	page_id: number;
 	name: string;

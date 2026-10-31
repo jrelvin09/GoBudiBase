@@ -15,8 +15,10 @@
 	} from 'lucide-svelte';
 
 	let {
+		title = 'Hierarki Lokasi Spasial',
 		onSelectNode
 	}: {
+		title?: string;
 		onSelectNode?: (node: TreeNode) => void;
 	} = $props();
 
@@ -132,7 +134,7 @@
 	<div class="flex items-center justify-between border-b border-slate-800 pb-3">
 		<div class="flex items-center gap-2">
 			<FolderTree class="h-4 w-4 text-emerald-400" />
-			<span class="text-xs font-bold uppercase tracking-wider text-slate-200">Hierarki Lokasi Spasial</span>
+			<span class="text-xs font-bold uppercase tracking-wider text-slate-200">{title}</span>
 		</div>
 
 		<button

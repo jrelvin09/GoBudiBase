@@ -3,6 +3,12 @@
 	import { postRPC, type RegistryItem } from '$lib/api/client';
 	import { Search, X, Check, Building2, ExternalLink } from 'lucide-svelte';
 
+	let {
+		title = 'Oracle APEX Popup LOV (List of Values)'
+	}: {
+		title?: string;
+	} = $props();
+
 	let openModal = $state(false);
 	let selectedItem = $state<RegistryItem | null>(null);
 	let searchQuery = $state('');
@@ -47,7 +53,7 @@
 		</div>
 		<div>
 			<h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-				<span>Oracle APEX Popup LOV (List of Values)</span>
+				<span>{title}</span>
 				<span class="rounded bg-indigo-500/20 px-2 py-0.5 font-mono text-[10px] font-semibold text-indigo-300">
 					MODAL LOOKUP
 				</span>

@@ -3,6 +3,7 @@
 	import {
 		fetchRuntimeApp,
 		createNewPage,
+		updatePage,
 		deletePage,
 		createComponent,
 		deleteComponent,
@@ -69,7 +70,7 @@
 	}: {
 		appSlug: string;
 		onBack: () => void;
-		onRun?: () => void;
+		onRun?: (pageSlug?: string) => void;
 	} = $props();
 
 	let runtimeApp = $state<RuntimeApp | null>(null);
@@ -229,6 +230,36 @@
 		}
 	}
 
+	async function handleSavePageProperty() {
+		if (!activePage) return;
+		try {
+			await updatePage({
+				page_id: activePage.id,
+				title: activePage.title,
+				slug: activePage.slug,
+				layout: activePage.layout || 'single',
+				icon: activePage.icon || 'FileText'
+			});
+			triggerSaveNotification();
+		} catch (e) {
+			console.error('Failed to update page:', e);
+		}
+	}
+
+	async function handleSaveAll() {
+		if (selectedComponent) {
+			await handleSaveComponentProperty();
+		}
+		if (activePage) {
+			await handleSavePageProperty();
+		}
+	}
+
+	async function handleRunApp() {
+		await handleSaveAll();
+		onRun?.(activePage?.slug);
+	}
+
 	async function handleAddPage() {
 		if (!runtimeApp || !newPageTitle || !newPageSlug) return;
 		try {
@@ -261,6 +292,18 @@
 	}
 </script>
 
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'F5') {
+			e.preventDefault();
+			handleRunApp();
+		} else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+			e.preventDefault();
+			handleSaveAll();
+		}
+	}}
+/>
+
 <!-- Visual Basic 6.0 / Visual Studio RAD IDE Main Container -->
 <div class="flex h-[calc(100vh-140px)] flex-col rounded-xl border border-slate-800 bg-slate-950 shadow-2xl overflow-hidden font-sans select-none">
 	<!-- 1. VISUAL BASIC TOP MENU & TOOLBAR RIBBON -->
@@ -276,7 +319,7 @@
 					<button type="button" onclick={() => (showAddPageModal = true)} class="hover:text-emerald-400 font-semibold">+ Project</button>
 					<button type="button" class="hover:text-slate-200">Format</button>
 					<button type="button" class="hover:text-slate-200">Debug</button>
-					<button type="button" onclick={onRun} class="hover:text-emerald-400 font-semibold">Run</button>
+					<button type="button" onclick={handleRunApp} class="hover:text-emerald-400 font-semibold">Run (F5)</button>
 					<button type="button" class="hover:text-slate-200">Tools</button>
 					<button type="button" class="hover:text-slate-200">Window</button>
 					<button type="button" class="hover:text-slate-200">Help</button>
@@ -311,8 +354,8 @@
 				<!-- Save Button -->
 				<button
 					type="button"
-					onclick={handleSaveComponentProperty}
-					class="flex items-center gap-1 rounded bg-slate-800 px-2.5 py-1 text-slate-200 hover:bg-slate-700 hover:text-white transition"
+					onclick={handleSaveAll}
+					class="flex items-center gap-1 rounded bg-slate-800 px-2.5 py-1 text-slate-200 hover:bg-slate-700 hover:text-white transition cursor-pointer"
 					title="Save Project (Ctrl+S)"
 				>
 					<Save class="h-3.5 w-3.5 text-emerald-400" />
@@ -323,7 +366,7 @@
 				<button
 					type="button"
 					onclick={() => (showAddPageModal = true)}
-					class="flex items-center gap-1 rounded bg-slate-800 px-2.5 py-1 text-slate-200 hover:bg-slate-700 hover:text-emerald-300 transition"
+					class="flex items-center gap-1 rounded bg-slate-800 px-2.5 py-1 text-slate-200 hover:bg-slate-700 hover:text-emerald-300 transition cursor-pointer"
 					title="Tambah Form Baru (New Page)"
 				>
 					<Plus class="h-3.5 w-3.5 text-emerald-400" />
@@ -335,7 +378,7 @@
 				<!-- Classic Visual Basic RUN (F5) Button -->
 				<button
 					type="button"
-					onclick={onRun}
+					onclick={handleRunApp}
 					class="flex items-center gap-1.5 rounded bg-emerald-600 px-3 py-1 font-bold text-white shadow hover:bg-emerald-500 transition cursor-pointer"
 					title="Start Run App (F5)"
 				>
@@ -935,6 +978,7 @@
 											oninput={(e) => {
 												if (!selectedComponent.props) selectedComponent.props = {};
 												selectedComponent.props.title = e.currentTarget.value;
+												selectedComponent.name = e.currentTarget.value;
 											}}
 											onblur={handleSaveComponentProperty}
 											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
@@ -1035,28 +1079,60 @@
 						<!-- Form Properties -->
 						<table class="w-full border-collapse text-left">
 							<tbody>
-								<tr class="border-b border-slate-800/80 hover:bg-slate-800/40">
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<tr
+									class="border-b border-slate-800/80 hover:bg-slate-800/40"
+									onclick={() => (activePropertyHelp = { title: '(Name)', desc: 'Slug identitas unik URL form/halaman aktif.' })}
+								>
 									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
 										(Name)
 									</td>
 									<td class="px-2 py-1 font-mono text-slate-200">
-										frm_{activePage.slug}
+										<input
+											type="text"
+											bind:value={activePage.slug}
+											onblur={handleSavePageProperty}
+											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded font-mono"
+										/>
 									</td>
 								</tr>
-								<tr class="border-b border-slate-800/80 hover:bg-slate-800/40">
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<tr
+									class="border-b border-slate-800/80 hover:bg-slate-800/40"
+									onclick={() => (activePropertyHelp = { title: 'Caption', desc: 'Judul tab atau navigasi form di runtime aplikasi.' })}
+								>
 									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
 										Caption
 									</td>
-									<td class="px-2 py-1 font-semibold text-slate-200">
-										{activePage.title}
+									<td class="px-2 py-1">
+										<input
+											type="text"
+											bind:value={activePage.title}
+											onblur={handleSavePageProperty}
+											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded font-semibold"
+										/>
 									</td>
 								</tr>
-								<tr class="border-b border-slate-800/80 hover:bg-slate-800/40">
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<tr
+									class="border-b border-slate-800/80 hover:bg-slate-800/40"
+									onclick={() => (activePropertyHelp = { title: 'Layout', desc: 'Susunan tata letak kontrol form: single (1 kolom bertumpuk) atau split-2 (2 kolom grid).' })}
+								>
 									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
 										Layout
 									</td>
-									<td class="px-2 py-1 font-mono text-emerald-400">
-										{activePage.layout || 'single'}
+									<td class="px-2 py-1">
+										<select
+											bind:value={activePage.layout}
+											onchange={handleSavePageProperty}
+											class="w-full bg-slate-950 text-emerald-400 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer"
+										>
+											<option value="single">single (1 Kolom Stacked)</option>
+											<option value="split-2">split-2 (2 Kolom Grid)</option>
+										</select>
 									</td>
 								</tr>
 								<tr class="border-b border-slate-800/80 hover:bg-slate-800/40">
