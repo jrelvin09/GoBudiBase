@@ -95,6 +95,10 @@
 
 	// Visual Basic Property Grid State
 	let propertyTab = $state<'categorized' | 'alphabetic'>('categorized');
+	let collapsedCategories = $state<Record<string, boolean>>({});
+	function toggleCategory(cat: string) {
+		collapsedCategories[cat] = !collapsedCategories[cat];
+	}
 	let activePropertyHelp = $state({
 		title: '(Name)',
 		desc: 'Menentukan pengenal unik kontrol dalam runtime dan kode aplikasi.'
@@ -1575,314 +1579,387 @@
 				<!-- Visual Basic 2-Column Property Grid Table -->
 				<div class="flex-1 overflow-y-auto text-xs">
 					{#if selectedComponent}
+						<!-- Property Row Snippets -->
+						{#snippet propName()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: '(Name)', desc: 'Menentukan pengenal simbolik unik komponen dalam kode dan runtime.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									(Name)
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="text"
+										bind:value={selectedComponent.name}
+										oninput={() => {
+											if (selectedComponent.props) {
+												selectedComponent.props.title = selectedComponent.name;
+											}
+											debounceSaveProperty();
+										}}
+										onblur={handleSaveComponentProperty}
+										onkeydown={(e) => {
+											if (e.key === 'Enter') handleSaveComponentProperty();
+										}}
+										class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propCaption()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Caption', desc: 'Teks judul atau label yang terlihat pada header tampilan kontrol.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Caption
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="text"
+										value={(selectedComponent.props?.title as string) || selectedComponent.name}
+										oninput={(e) => {
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.title = e.currentTarget.value;
+											selectedComponent.name = e.currentTarget.value;
+											debounceSaveProperty();
+										}}
+										onblur={handleSaveComponentProperty}
+										onkeydown={(e) => {
+											if (e.key === 'Enter') handleSaveComponentProperty();
+										}}
+										class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propLeft()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Left', desc: 'Jarak posisi horizontal kontrol dari tepi kiri form (dalam pixel).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Left
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="number"
+										value={typeof selectedComponent.props?.left === 'number' ? selectedComponent.props.left : 24}
+										oninput={(e) => {
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.left = Number(e.currentTarget.value);
+											debounceSaveProperty();
+										}}
+										onblur={handleSaveComponentProperty}
+										class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propTop()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Top', desc: 'Jarak posisi vertikal kontrol dari tepi atas form (dalam pixel).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Top
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="number"
+										value={typeof selectedComponent.props?.top === 'number' ? selectedComponent.props.top : 24}
+										oninput={(e) => {
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.top = Number(e.currentTarget.value);
+											debounceSaveProperty();
+										}}
+										onblur={handleSaveComponentProperty}
+										class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propWidth()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Width', desc: 'Lebar ukuran kontrol pada form (dalam pixel).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Width
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="number"
+										value={typeof selectedComponent.props?.width === 'number' ? selectedComponent.props.width : 240}
+										oninput={(e) => {
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.width = Number(e.currentTarget.value);
+											debounceSaveProperty();
+										}}
+										onblur={handleSaveComponentProperty}
+										class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propHeight()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Height', desc: 'Tinggi ukuran kontrol pada form (dalam pixel).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Height
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="number"
+										value={typeof selectedComponent.props?.height === 'number' ? selectedComponent.props.height : 48}
+										oninput={(e) => {
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.height = Number(e.currentTarget.value);
+											debounceSaveProperty();
+										}}
+										onblur={handleSaveComponentProperty}
+										class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propVariant()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Variant', desc: 'Gaya tampilan visual kontrol: default (Primary Emerald), secondary (Slate), destructive (Rose), outline.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Variant
+								</td>
+								<td class="px-2 py-1">
+									<select
+										value={(selectedComponent.props?.variant as string) || 'default'}
+										onchange={(e) => {
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.variant = e.currentTarget.value;
+											handleSaveComponentProperty();
+										}}
+										class="w-full bg-slate-950 text-emerald-400 outline-none cursor-pointer border border-slate-800 rounded px-1 py-0.5"
+									>
+										<option value="default">default (Primary Emerald)</option>
+										<option value="secondary">secondary (Slate)</option>
+										<option value="destructive">destructive (Rose/Danger)</option>
+										<option value="outline">outline (Border)</option>
+									</select>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propPlaceholder()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Placeholder', desc: 'Teks panduan abu-abu di dalam kotak input sebelum pengguna mengetik.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Placeholder
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="text"
+										value={(selectedComponent.props?.placeholder as string) || ''}
+										oninput={(e) => {
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.placeholder = e.currentTarget.value;
+											debounceSaveProperty();
+										}}
+										onblur={handleSaveComponentProperty}
+										onkeydown={(e) => {
+											if (e.key === 'Enter') handleSaveComponentProperty();
+										}}
+										class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propType()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Type', desc: 'Tipe definisi kontrol APEX / UI Kit komponen yang sedang aktif.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Type
+								</td>
+								<td class="px-2 py-1 font-mono text-[11px] text-emerald-400">
+									{selectedComponent.type}
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propDataSource()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'DataSource', desc: 'Sumber data pengisi tabel (PostgreSQL 17 Table / Stored Procedure RPC).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									DataSource
+								</td>
+								<td class="px-2 py-1">
+									<select
+										bind:value={selectedComponent.datasource_type}
+										onchange={handleSaveComponentProperty}
+										class="w-full bg-transparent text-slate-200 outline-none cursor-pointer"
+									>
+										<option value="table" class="bg-slate-900">PostgreSQL Table</option>
+										<option value="rpc" class="bg-slate-900">RPC Procedure</option>
+										<option value="none" class="bg-slate-900">None / Static</option>
+									</select>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propRegion()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Region', desc: 'Zona penempatan kontrol dalam layout halaman (main, header, footer).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Region
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="text"
+										bind:value={selectedComponent.region}
+										onblur={handleSaveComponentProperty}
+										class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propVisible()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Visible', desc: 'Menentukan apakah kontrol dirender dan terlihat di runtime.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Visible
+								</td>
+								<td class="px-2 py-1 text-slate-300 font-mono text-[11px]">
+									True
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propEnabled()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Enabled', desc: 'Menentukan apakah kontrol menerima interaksi klik dan ketukan pengguna.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Enabled
+								</td>
+								<td class="px-2 py-1 text-slate-300 font-mono text-[11px]">
+									True
+								</td>
+							</tr>
+						{/snippet}
+
 						<table class="w-full border-collapse text-left">
-							<tbody>
-								<!-- (Name) Property -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: '(Name)', desc: 'Menentukan pengenal simbolik unik komponen dalam kode dan runtime.' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										(Name)
-									</td>
-									<td class="px-2 py-1">
-										<input
-											type="text"
-											bind:value={selectedComponent.name}
-											oninput={() => {
-												if (selectedComponent.props) {
-													selectedComponent.props.title = selectedComponent.name;
-												}
-												debounceSaveProperty();
-											}}
-											onblur={handleSaveComponentProperty}
-											onkeydown={(e) => {
-												if (e.key === 'Enter') handleSaveComponentProperty();
-											}}
-											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
-										/>
-									</td>
-								</tr>
-
-								<!-- Caption / Title Property -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Caption', desc: 'Teks judul atau label yang terlihat pada header tampilan kontrol.' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Caption
-									</td>
-									<td class="px-2 py-1">
-										<input
-											type="text"
-											value={(selectedComponent.props?.title as string) || selectedComponent.name}
-											oninput={(e) => {
-												if (!selectedComponent.props) selectedComponent.props = {};
-												selectedComponent.props.title = e.currentTarget.value;
-												selectedComponent.name = e.currentTarget.value;
-												debounceSaveProperty();
-											}}
-											onblur={handleSaveComponentProperty}
-											onkeydown={(e) => {
-												if (e.key === 'Enter') handleSaveComponentProperty();
-											}}
-											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
-										/>
-									</td>
-								</tr>
-
-								<!-- Left Property (Posisi X) -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Left', desc: 'Jarak posisi horizontal kontrol dari tepi kiri form (dalam pixel).' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Left
-									</td>
-									<td class="px-2 py-1">
-										<input
-											type="number"
-											value={typeof selectedComponent.props?.left === 'number' ? selectedComponent.props.left : 24}
-											oninput={(e) => {
-												if (!selectedComponent.props) selectedComponent.props = {};
-												selectedComponent.props.left = Number(e.currentTarget.value);
-												debounceSaveProperty();
-											}}
-											onblur={handleSaveComponentProperty}
-											class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
-										/>
-									</td>
-								</tr>
-
-								<!-- Top Property (Posisi Y) -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Top', desc: 'Jarak posisi vertikal kontrol dari tepi atas form (dalam pixel).' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Top
-									</td>
-									<td class="px-2 py-1">
-										<input
-											type="number"
-											value={typeof selectedComponent.props?.top === 'number' ? selectedComponent.props.top : 24}
-											oninput={(e) => {
-												if (!selectedComponent.props) selectedComponent.props = {};
-												selectedComponent.props.top = Number(e.currentTarget.value);
-												debounceSaveProperty();
-											}}
-											onblur={handleSaveComponentProperty}
-											class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
-										/>
-									</td>
-								</tr>
-
-								<!-- Width Property (Panjang / Lebar) -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Width', desc: 'Lebar ukuran kontrol pada form (dalam pixel).' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Width
-									</td>
-									<td class="px-2 py-1">
-										<input
-											type="number"
-											value={typeof selectedComponent.props?.width === 'number' ? selectedComponent.props.width : 240}
-											oninput={(e) => {
-												if (!selectedComponent.props) selectedComponent.props = {};
-												selectedComponent.props.width = Number(e.currentTarget.value);
-												debounceSaveProperty();
-											}}
-											onblur={handleSaveComponentProperty}
-											class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
-										/>
-									</td>
-								</tr>
-
-								<!-- Height Property (Tinggi) -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Height', desc: 'Tinggi ukuran kontrol pada form (dalam pixel).' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Height
-									</td>
-									<td class="px-2 py-1">
-										<input
-											type="number"
-											value={typeof selectedComponent.props?.height === 'number' ? selectedComponent.props.height : 48}
-											oninput={(e) => {
-												if (!selectedComponent.props) selectedComponent.props = {};
-												selectedComponent.props.height = Number(e.currentTarget.value);
-												debounceSaveProperty();
-											}}
-											onblur={handleSaveComponentProperty}
-											class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
-										/>
-									</td>
-								</tr>
-
-								<!-- Variant / Style Property for Buttons, Badges, etc. -->
-								{#if selectedComponent.type === 'button' || selectedComponent.type === 'kit:button' || selectedComponent.type === 'badge' || selectedComponent.type === 'kit:badge'}
-									<!-- svelte-ignore a11y_click_events_have_key_events -->
-									<!-- svelte-ignore a11y_no_static_element_interactions -->
+							{#if propertyTab === 'categorized'}
+								<!-- CATEGORIZED VIEW (Grouped by VB Categories with Collapsible Headers) -->
+								<tbody>
+									<!-- Category 1: Appearance -->
 									<tr
-										class="border-b border-slate-800/80 hover:bg-slate-800/40"
-										onclick={() => (activePropertyHelp = { title: 'Variant', desc: 'Gaya tampilan visual kontrol: default (Primary Emerald), secondary (Slate), destructive (Rose), outline.' })}
+										class="bg-slate-900/90 border-b border-slate-800 text-[10px] font-bold text-emerald-400 cursor-pointer select-none hover:bg-slate-850"
+										onclick={() => toggleCategory('appearance')}
 									>
-										<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-											Variant
-										</td>
-										<td class="px-2 py-1">
-											<select
-												value={(selectedComponent.props?.variant as string) || 'default'}
-												onchange={(e) => {
-													if (!selectedComponent.props) selectedComponent.props = {};
-													selectedComponent.props.variant = e.currentTarget.value;
-													handleSaveComponentProperty();
-												}}
-												class="w-full bg-slate-950 text-emerald-400 outline-none cursor-pointer border border-slate-800 rounded px-1 py-0.5"
-											>
-												<option value="default">default (Primary Emerald)</option>
-												<option value="secondary">secondary (Slate)</option>
-												<option value="destructive">destructive (Rose/Danger)</option>
-												<option value="outline">outline (Border)</option>
-											</select>
+										<td colspan="2" class="px-2 py-1">
+											<span>{collapsedCategories['appearance'] ? '▶' : '▼'}</span> Appearance
 										</td>
 									</tr>
-								{/if}
+									{#if !collapsedCategories['appearance']}
+										{@render propCaption()}
+										{#if selectedComponent.type === 'button' || selectedComponent.type === 'kit:button' || selectedComponent.type === 'badge' || selectedComponent.type === 'kit:badge'}
+											{@render propVariant()}
+										{/if}
+										{#if selectedComponent.type === 'input' || selectedComponent.type === 'kit:input' || selectedComponent.type === 'kit:text-item'}
+											{@render propPlaceholder()}
+										{/if}
+									{/if}
 
-								<!-- Placeholder Property for Inputs -->
-								{#if selectedComponent.type === 'input' || selectedComponent.type === 'kit:input' || selectedComponent.type === 'kit:text-item'}
-									<!-- svelte-ignore a11y_click_events_have_key_events -->
-									<!-- svelte-ignore a11y_no_static_element_interactions -->
+									<!-- Category 2: Position & Size -->
 									<tr
-										class="border-b border-slate-800/80 hover:bg-slate-800/40"
-										onclick={() => (activePropertyHelp = { title: 'Placeholder', desc: 'Teks panduan abu-abu di dalam kotak input sebelum pengguna mengetik.' })}
+										class="bg-slate-900/90 border-b border-slate-800 text-[10px] font-bold text-emerald-400 cursor-pointer select-none hover:bg-slate-850"
+										onclick={() => toggleCategory('position')}
 									>
-										<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-											Placeholder
-										</td>
-										<td class="px-2 py-1">
-											<input
-												type="text"
-												value={(selectedComponent.props?.placeholder as string) || ''}
-												oninput={(e) => {
-													if (!selectedComponent.props) selectedComponent.props = {};
-													selectedComponent.props.placeholder = e.currentTarget.value;
-													debounceSaveProperty();
-												}}
-												onblur={handleSaveComponentProperty}
-												onkeydown={(e) => {
-													if (e.key === 'Enter') handleSaveComponentProperty();
-												}}
-												class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
-											/>
+										<td colspan="2" class="px-2 py-1">
+											<span>{collapsedCategories['position'] ? '▶' : '▼'}</span> Position & Size
 										</td>
 									</tr>
-								{/if}
+									{#if !collapsedCategories['position']}
+										{@render propLeft()}
+										{@render propTop()}
+										{@render propWidth()}
+										{@render propHeight()}
+										{@render propRegion()}
+									{/if}
 
-								<!-- Type (Read-Only) -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Type', desc: 'Tipe definisi kontrol APEX / UI Kit komponen yang sedang aktif.' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Type
-									</td>
-									<td class="px-2 py-1 font-mono text-[11px] text-emerald-400">
-										{selectedComponent.type}
-									</td>
-								</tr>
+									<!-- Category 3: Data -->
+									<tr
+										class="bg-slate-900/90 border-b border-slate-800 text-[10px] font-bold text-emerald-400 cursor-pointer select-none hover:bg-slate-850"
+										onclick={() => toggleCategory('data')}
+									>
+										<td colspan="2" class="px-2 py-1">
+											<span>{collapsedCategories['data'] ? '▶' : '▼'}</span> Data
+										</td>
+									</tr>
+									{#if !collapsedCategories['data']}
+										{@render propDataSource()}
+									{/if}
 
-								<!-- DataSource Property -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'DataSource', desc: 'Sumber data pengisi tabel (PostgreSQL 17 Table / Stored Procedure RPC).' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										DataSource
-									</td>
-									<td class="px-2 py-1">
-										<select
-											bind:value={selectedComponent.datasource_type}
-											onchange={handleSaveComponentProperty}
-											class="w-full bg-transparent text-slate-200 outline-none cursor-pointer"
-										>
-											<option value="table" class="bg-slate-900">PostgreSQL Table</option>
-											<option value="rpc" class="bg-slate-900">RPC Procedure</option>
-											<option value="none" class="bg-slate-900">None / Static</option>
-										</select>
-									</td>
-								</tr>
-
-								<!-- Region Property -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Region', desc: 'Zona penempatan kontrol dalam layout halaman (main, header, footer).' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Region
-									</td>
-									<td class="px-2 py-1">
-										<input
-											type="text"
-											bind:value={selectedComponent.region}
-											onblur={handleSaveComponentProperty}
-											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
-										/>
-									</td>
-								</tr>
-
-								<!-- Visible Property -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Visible', desc: 'Menentukan apakah kontrol dirender dan terlihat di runtime.' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Visible
-									</td>
-									<td class="px-2 py-1 text-slate-300 font-mono text-[11px]">
-										True
-									</td>
-								</tr>
-
-								<!-- Enabled Property -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Enabled', desc: 'Menentukan apakah kontrol menerima interaksi klik dan ketukan pengguna.' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Enabled
-									</td>
-									<td class="px-2 py-1 text-slate-300 font-mono text-[11px]">
-										True
-									</td>
-								</tr>
-							</tbody>
+									<!-- Category 4: Behavior & Misc -->
+									<tr
+										class="bg-slate-900/90 border-b border-slate-800 text-[10px] font-bold text-emerald-400 cursor-pointer select-none hover:bg-slate-850"
+										onclick={() => toggleCategory('behavior')}
+									>
+										<td colspan="2" class="px-2 py-1">
+											<span>{collapsedCategories['behavior'] ? '▶' : '▼'}</span> Behavior & Misc
+										</td>
+									</tr>
+									{#if !collapsedCategories['behavior']}
+										{@render propName()}
+										{@render propType()}
+										{@render propVisible()}
+										{@render propEnabled()}
+									{/if}
+								</tbody>
+							{:else}
+								<!-- ALPHABETIC VIEW (Strict A-Z Sort) -->
+								<tbody>
+									{@render propName()}
+									{@render propCaption()}
+									{@render propDataSource()}
+									{@render propEnabled()}
+									{@render propHeight()}
+									{@render propLeft()}
+									{#if selectedComponent.type === 'input' || selectedComponent.type === 'kit:input' || selectedComponent.type === 'kit:text-item'}
+										{@render propPlaceholder()}
+									{/if}
+									{@render propRegion()}
+									{@render propTop()}
+									{@render propType()}
+									{#if selectedComponent.type === 'button' || selectedComponent.type === 'kit:button' || selectedComponent.type === 'badge' || selectedComponent.type === 'kit:badge'}
+										{@render propVariant()}
+									{/if}
+									{@render propVisible()}
+									{@render propWidth()}
+								</tbody>
+							{/if}
 						</table>
 						<!-- Action Chains Inspector for Selected Component -->
 						<div class="border-t border-slate-800 bg-slate-950/90 p-2.5">
@@ -1965,147 +2042,184 @@
 							</div>
 						</div>
 					{:else if activePage}
-						<!-- Form Properties -->
+						<!-- Form Property Row Snippets -->
+						{#snippet formSlug()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: '(Name)', desc: 'Slug identitas unik URL form/halaman aktif.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									(Name)
+								</td>
+								<td class="px-2 py-1 font-mono text-slate-200">
+									<input
+										type="text"
+										bind:value={activePage.slug}
+										onblur={handleSavePageProperty}
+										class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded font-mono"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet formTitle()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Caption', desc: 'Judul tab atau navigasi form di runtime aplikasi.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Caption
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="text"
+										bind:value={activePage.title}
+										onblur={handleSavePageProperty}
+										class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded font-semibold"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet formLayout()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Layout', desc: 'Susunan tata letak kontrol form: free (Visual Basic Freeform Canvas), single (1 kolom bertumpuk), atau split-2 (2 kolom grid).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Layout
+								</td>
+								<td class="px-2 py-1">
+									<select
+										bind:value={activePage.layout}
+										onchange={handleSavePageProperty}
+										class="w-full bg-slate-950 text-emerald-400 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer text-xs"
+									>
+										<option value="free">free (Visual Basic Freeform)</option>
+										<option value="single">single (1 Kolom Stacked)</option>
+										<option value="split-2">split-2 (2 Kolom Grid)</option>
+									</select>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet formMenuGroup()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'MenuGroup', desc: 'Kategori atau nama section menu grup di navigasi (contoh: Operasional & Fisik, Analitika & Monitoring).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									MenuGroup
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="text"
+										bind:value={activePage.group_name}
+										onblur={handleSavePageProperty}
+										placeholder="Menu Utama"
+										list="group-presets"
+										class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded font-mono text-xs"
+									/>
+									<datalist id="group-presets">
+										<option value="Operasional & Fisik">Operasional & Fisik</option>
+										<option value="Analitika & Monitoring">Analitika & Monitoring</option>
+										<option value="Kustom & Pengujian">Kustom & Pengujian</option>
+										<option value="Menu Utama">Menu Utama</option>
+									</datalist>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet formSubMenuOf()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'SubMenuOf', desc: 'Jadikan halaman ini sub-menu bertingkat di bawah halaman induk yang dipilih.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									SubMenuOf
+								</td>
+								<td class="px-2 py-1">
+									<select
+										bind:value={activePage.parent_slug}
+										onchange={handleSavePageProperty}
+										class="w-full bg-slate-950 text-slate-200 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer text-xs"
+									>
+										<option value={null}>(None - Top Level Menu)</option>
+										{#each runtimeApp?.pages.filter((p) => p.slug !== activePage?.slug && !p.parent_slug) || [] as parentCandidate}
+											<option value={parentCandidate.slug}>
+												↳ {parentCandidate.title} ({parentCandidate.slug})
+											</option>
+										{/each}
+									</select>
+								</td>
+							</tr>
+						{/snippet}
+
 						<table class="w-full border-collapse text-left">
-							<tbody>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: '(Name)', desc: 'Slug identitas unik URL form/halaman aktif.' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										(Name)
-									</td>
-									<td class="px-2 py-1 font-mono text-slate-200">
-										<input
-											type="text"
-											bind:value={activePage.slug}
-											onblur={handleSavePageProperty}
-											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded font-mono"
-										/>
-									</td>
-								</tr>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Caption', desc: 'Judul tab atau navigasi form di runtime aplikasi.' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Caption
-									</td>
-									<td class="px-2 py-1">
-										<input
-											type="text"
-											bind:value={activePage.title}
-											onblur={handleSavePageProperty}
-											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded font-semibold"
-										/>
-									</td>
-								</tr>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'Layout', desc: 'Susunan tata letak kontrol form: free (Visual Basic Freeform Canvas), single (1 kolom bertumpuk), atau split-2 (2 kolom grid).' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Layout
-									</td>
-									<td class="px-2 py-1">
-										<select
-											bind:value={activePage.layout}
-											onchange={handleSavePageProperty}
-											class="w-full bg-slate-950 text-emerald-400 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer text-xs"
-										>
-											<option value="free">free (Visual Basic Freeform)</option>
-											<option value="single">single (1 Kolom Stacked)</option>
-											<option value="split-2">split-2 (2 Kolom Grid)</option>
-										</select>
-									</td>
-								</tr>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'MenuGroup', desc: 'Kategori atau nama section menu grup di navigasi (contoh: Operasional & Fisik, Analitika & Monitoring).' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										MenuGroup
-									</td>
-									<td class="px-2 py-1">
-										<input
-											type="text"
-											bind:value={activePage.group_name}
-											onblur={handleSavePageProperty}
-											placeholder="Menu Utama"
-											list="group-presets"
-											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded font-mono text-xs"
-										/>
-										<datalist id="group-presets">
-											<option value="Operasional & Fisik">Operasional & Fisik</option>
-											<option value="Analitika & Monitoring">Analitika & Monitoring</option>
-											<option value="Kustom & Pengujian">Kustom & Pengujian</option>
-											<option value="Menu Utama">Menu Utama</option>
-										</datalist>
-									</td>
-								</tr>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'SubMenuOf', desc: 'Jadikan halaman ini sub-menu bertingkat di bawah halaman induk yang dipilih.' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										SubMenuOf
-									</td>
-									<td class="px-2 py-1">
-										<select
-											bind:value={activePage.parent_slug}
-											onchange={handleSavePageProperty}
-											class="w-full bg-slate-950 text-slate-200 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer text-xs"
-										>
-											<option value={null}>(None - Top Level Menu)</option>
-											{#each runtimeApp?.pages.filter((p) => p.slug !== activePage?.slug && !p.parent_slug) || [] as parentCandidate}
-												<option value={parentCandidate.slug}>
-													â†³ {parentCandidate.title} ({parentCandidate.slug})
-												</option>
-											{/each}
-										</select>
-									</td>
-								</tr>
-								<tr class="border-b border-slate-800/80 hover:bg-slate-800/40">
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										Controls
-									</td>
-									<td class="px-2 py-1 font-mono text-slate-300">
-										{activePage.components?.length || 0} items
-									</td>
-								</tr>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<tr
-									class="border-b border-slate-800/80 hover:bg-slate-800/40"
-									onclick={() => (activePropertyHelp = { title: 'MinRole', desc: 'Hak akses peran minimum untuk membuka form ini di aplikasi (public, basic, power, admin).' })}
-								>
-									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
-										MinRole
-									</td>
-									<td class="px-2 py-1">
-										<select
-											bind:value={activePage.min_role}
-											onchange={handleSavePageProperty}
-											class="w-full bg-slate-950 text-indigo-400 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer text-xs font-bold"
-										>
-											<option value="public">public (Semua Pengguna)</option>
-											<option value="basic">basic (Basic User)</option>
-											<option value="power">power (Power User)</option>
-											<option value="admin">admin (Administrator)</option>
-										</select>
-									</td>
-								</tr>
-							</tbody>
+							{#if propertyTab === 'categorized'}
+								<tbody>
+									<!-- Appearance -->
+									<tr
+										class="bg-slate-900/90 border-b border-slate-800 text-[10px] font-bold text-emerald-400 cursor-pointer select-none hover:bg-slate-850"
+										onclick={() => toggleCategory('form_appearance')}
+									>
+										<td colspan="2" class="px-2 py-1">
+											<span>{collapsedCategories['form_appearance'] ? '▶' : '▼'}</span> Appearance
+										</td>
+									</tr>
+									{#if !collapsedCategories['form_appearance']}
+										{@render formTitle()}
+									{/if}
+
+									<!-- Layout -->
+									<tr
+										class="bg-slate-900/90 border-b border-slate-800 text-[10px] font-bold text-emerald-400 cursor-pointer select-none hover:bg-slate-850"
+										onclick={() => toggleCategory('form_layout')}
+									>
+										<td colspan="2" class="px-2 py-1">
+											<span>{collapsedCategories['form_layout'] ? '▶' : '▼'}</span> Layout
+										</td>
+									</tr>
+									{#if !collapsedCategories['form_layout']}
+										{@render formLayout()}
+									{/if}
+
+									<!-- Navigation -->
+									<tr
+										class="bg-slate-900/90 border-b border-slate-800 text-[10px] font-bold text-emerald-400 cursor-pointer select-none hover:bg-slate-850"
+										onclick={() => toggleCategory('form_nav')}
+									>
+										<td colspan="2" class="px-2 py-1">
+											<span>{collapsedCategories['form_nav'] ? '▶' : '▼'}</span> Navigation
+										</td>
+									</tr>
+									{#if !collapsedCategories['form_nav']}
+										{@render formMenuGroup()}
+										{@render formSubMenuOf()}
+									{/if}
+
+									<!-- System -->
+									<tr
+										class="bg-slate-900/90 border-b border-slate-800 text-[10px] font-bold text-emerald-400 cursor-pointer select-none hover:bg-slate-850"
+										onclick={() => toggleCategory('form_sys')}
+									>
+										<td colspan="2" class="px-2 py-1">
+											<span>{collapsedCategories['form_sys'] ? '▶' : '▼'}</span> System
+										</td>
+									</tr>
+									{#if !collapsedCategories['form_sys']}
+										{@render formSlug()}
+									{/if}
+								</tbody>
+							{:else}
+								<tbody>
+									{@render formSlug()}
+									{@render formTitle()}
+									{@render formLayout()}
+									{@render formMenuGroup()}
+									{@render formSubMenuOf()}
+								</tbody>
+							{/if}
 						</table>
 
 						<!-- Prominent Form Action Box in Properties Window -->
