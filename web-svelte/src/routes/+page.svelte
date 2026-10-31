@@ -3,16 +3,18 @@
 	import AppManager from '$lib/studio/AppManager.svelte';
 	import PageDesigner from '$lib/studio/PageDesigner.svelte';
 	import SqlStudio from '$lib/studio/SqlStudio.svelte';
+	import ComponentCatalog from '$lib/studio/ComponentCatalog.svelte';
 	import {
 		LayoutDashboard,
 		Play,
 		Edit3,
 		Terminal,
 		Layers,
-		CheckCircle2
+		CheckCircle2,
+		Puzzle
 	} from 'lucide-svelte';
 
-	type MainMode = 'runtime' | 'studio_apps' | 'studio_designer' | 'sql_studio';
+	type MainMode = 'runtime' | 'studio_apps' | 'studio_designer' | 'sql_studio' | 'catalog';
 
 	let currentMode = $state<MainMode>('runtime');
 	let activeAppSlug = $state<string>('bmn-enterprise');
@@ -56,6 +58,16 @@
 				<Terminal class="h-4 w-4" />
 				<span>SQL & Schema Studio</span>
 			</button>
+
+			<!-- Mode UI Kit Catalog (71 Komponen) -->
+			<button
+				type="button"
+				onclick={() => (currentMode = 'catalog')}
+				class="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition {currentMode === 'catalog' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'}"
+			>
+				<Puzzle class="h-4 w-4" />
+				<span>UI Kit (71 Komponen)</span>
+			</button>
 		</div>
 
 		<!-- Status Label -->
@@ -67,6 +79,8 @@
 					Designer: <strong class="text-emerald-400">{activeAppSlug}</strong>
 				{:else if currentMode === 'studio_apps'}
 					App Catalog
+				{:else if currentMode === 'catalog'}
+					UI Kit Catalog (71)
 				{:else}
 					PostgreSQL 17.11
 				{/if}
@@ -92,6 +106,8 @@
 			/>
 		{:else if currentMode === 'sql_studio'}
 			<SqlStudio />
+		{:else if currentMode === 'catalog'}
+			<ComponentCatalog />
 		{/if}
 	</div>
 </div>
