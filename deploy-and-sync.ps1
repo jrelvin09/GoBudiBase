@@ -34,16 +34,16 @@ Remove-Item Env:\GOOS, Env:\GOARCH
 Write-Host "`n[3/5] Deploying Go Daemon ke Server $serverIP..." -ForegroundColor Yellow
 tar -czf "$root\bin\gobudibase.tar.gz" -C "$root\bin" gobudibase
 scp -i $sshKey -o StrictHostKeyChecking=no "$root\bin\gobudibase.tar.gz" "mukti@${serverIP}:/tmp/gobudibase.tar.gz"
-ssh -i $sshKey -o StrictHostKeyChecking=no "mukti@${serverIP}" "sudo tar -xzf /tmp/gobudibase.tar.gz -C /usr/local/bin/ && sudo chmod +x /usr/local/bin/gobudibase && sudo systemctl restart gobudibase"
+ssh -n -i $sshKey -o StrictHostKeyChecking=no "mukti@${serverIP}" "sudo tar -xzf /tmp/gobudibase.tar.gz -C /usr/local/bin/ && sudo chmod +x /usr/local/bin/gobudibase && sudo systemctl restart gobudibase"
 
 # 4. DEPLOY FRONTEND SPA KE /var/www/gobudibase/ DI SERVER
 Write-Host "`n[4/5] Deploying Static SPA ke /var/www/gobudibase/ di Server $serverIP..." -ForegroundColor Yellow
 tar -czf "$root\build.tar.gz" -C "$root\web-svelte\build" .
 scp -i $sshKey -o StrictHostKeyChecking=no "$root\build.tar.gz" "mukti@${serverIP}:/tmp/gobudibase_build.tar.gz"
-ssh -i $sshKey -o StrictHostKeyChecking=no "mukti@${serverIP}" "sudo tar -xzf /tmp/gobudibase_build.tar.gz -C /var/www/gobudibase && sudo chown -R www-data:www-data /var/www/gobudibase"
+ssh -n -i $sshKey -o StrictHostKeyChecking=no "mukti@${serverIP}" "sudo tar -xzf /tmp/gobudibase_build.tar.gz -C /var/www/gobudibase && sudo chown -R www-data:www-data /var/www/gobudibase"
 
 # Verifikasi Live Server Health
-$health = ssh -i $sshKey -o StrictHostKeyChecking=no "mukti@${serverIP}" "curl -k -s -I https://${serverIP}/gobudibase/ | head -n 1 && systemctl status gobudibase | grep -E 'Active:|Memory:'"
+$health = ssh -n -i $sshKey -o StrictHostKeyChecking=no "mukti@${serverIP}" "curl -k -s -I https://${serverIP}/gobudibase/ | head -n 1 && systemctl status gobudibase | grep -E 'Active:|Memory:'"
 Write-Host "[OK] Server 106 Status: $health" -ForegroundColor Green
 
 # 5. COMMIT & PUSH KE GITHUB (c & p -> gh)

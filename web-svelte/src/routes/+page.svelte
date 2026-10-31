@@ -103,6 +103,7 @@
 			<PageDesigner
 				appSlug={activeAppSlug}
 				onBack={() => (currentMode = 'studio_apps')}
+				onRun={() => (currentMode = 'runtime')}
 			/>
 		{:else if currentMode === 'sql_studio'}
 			<SqlStudio />
