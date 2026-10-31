@@ -106,6 +106,18 @@
 	let newPageTitle = $state('');
 	let newPageSlug = $state('');
 	let newPageLayout = $state('single');
+	let newPageGroup = $state('Menu Utama');
+	let newPageParentSlug = $state<string | null>(null);
+
+	const formsByGroup = $derived.by(() => {
+		const groups: Record<string, { pg: RuntimePage; idx: number }[]> = {};
+		(runtimeApp?.pages || []).forEach((pg, idx) => {
+			const g = pg.group_name || 'Menu Utama';
+			if (!groups[g]) groups[g] = [];
+			groups[g].push({ pg, idx });
+		});
+		return groups;
+	});
 
 	async function loadApp() {
 		loading = true;
@@ -255,7 +267,9 @@
 				title: activePage.title,
 				slug: activePage.slug,
 				layout: activePage.layout || 'single',
-				icon: activePage.icon || 'FileText'
+				icon: activePage.icon || 'FileText',
+				group_name: activePage.group_name || 'Menu Utama',
+				parent_slug: activePage.parent_slug || null
 			});
 			triggerSaveNotification();
 		} catch (e) {
@@ -284,11 +298,15 @@
 				app_id: runtimeApp.app.id,
 				slug: newPageSlug,
 				title: newPageTitle,
-				layout: newPageLayout
+				layout: newPageLayout,
+				group_name: newPageGroup || 'Menu Utama',
+				parent_slug: newPageParentSlug || null
 			});
 			showAddPageModal = false;
 			newPageTitle = '';
 			newPageSlug = '';
+			newPageGroup = 'Menu Utama';
+			newPageParentSlug = null;
 			await loadApp();
 			activePageIndex = runtimeApp.pages.length - 1;
 		} catch (e) {
@@ -904,48 +922,68 @@
 						<span>Project1 ({runtimeApp?.app.slug || appSlug})</span>
 					</div>
 
-					<!-- Forms Branch -->
-					<div class="pl-4 flex flex-col gap-1">
+					<!-- Forms Branch Grouped by Menu Groups -->
+					<div class="pl-2 flex flex-col gap-1.5">
 						<div class="flex items-center gap-1 text-slate-400 font-semibold text-[11px]">
 							<ChevronDown class="h-3 w-3" />
-							<span>Forms (Halaman)</span>
+							<span>Menu & Forms ({runtimeApp?.pages?.length || 0})</span>
 						</div>
 
-						<div class="pl-3 flex flex-col gap-0.5">
-							{#each runtimeApp?.pages || [] as pg, idx}
-								{@const isActiveForm = activePageIndex === idx}
-								<div class="flex flex-col">
-									<button
-										type="button"
-										onclick={() => {
-											activePageIndex = idx;
-											selectedComponentId = pg.components?.[0]?.id || null;
-										}}
-										class="flex items-center justify-between rounded px-2 py-1 text-left transition {isActiveForm ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}"
-									>
-										<div class="flex items-center gap-1.5 truncate">
-											<FileText class="h-3 w-3 shrink-0" />
-											<span class="truncate">frm_{pg.slug}</span>
+						<div class="pl-2 flex flex-col gap-2">
+							{#each Object.entries(formsByGroup) as [groupName, groupPages]}
+								<div class="flex flex-col gap-1">
+									<div class="flex items-center justify-between text-slate-400 text-[10px] font-bold uppercase tracking-wider pr-1">
+										<div class="flex items-center gap-1 truncate">
+											<Folder class="h-3 w-3 text-amber-500/80 shrink-0" />
+											<span class="truncate">{groupName}</span>
 										</div>
-										<span class="text-[9px] opacity-75 shrink-0">({pg.components?.length || 0})</span>
-									</button>
+										<span class="rounded bg-slate-800 px-1 py-0.2 text-[8px] font-mono text-slate-400 shrink-0">
+											{groupPages.length}
+										</span>
+									</div>
 
-									<!-- Components under Active Form -->
-									{#if isActiveForm && pg.components && pg.components.length > 0}
-										<div class="pl-4 flex flex-col gap-0.5 border-l border-slate-800 my-0.5">
-											{#each pg.components as comp}
-												{@const isCompSelected = selectedComponentId === comp.id}
+									<div class="pl-2 flex flex-col gap-0.5 border-l border-slate-800/80 ml-1">
+										{#each groupPages as { pg, idx }}
+											{@const isActiveForm = activePageIndex === idx}
+											{@const isSubMenu = !!pg.parent_slug}
+											<div class="flex flex-col {isSubMenu ? 'pl-2.5' : ''}">
 												<button
 													type="button"
-													onclick={() => (selectedComponentId = comp.id)}
-													class="flex items-center gap-1 rounded px-1.5 py-0.5 text-left text-[10px] transition {isCompSelected ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'}"
+													onclick={() => {
+														activePageIndex = idx;
+														selectedComponentId = pg.components?.[0]?.id || null;
+													}}
+													class="flex items-center justify-between rounded px-2 py-1 text-left transition {isActiveForm ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}"
 												>
-													<span class="text-slate-500">•</span>
-													<span class="truncate">{comp.name}</span>
+													<div class="flex items-center gap-1.5 truncate">
+														{#if isSubMenu}
+															<span class="text-teal-400 font-bold text-[10px]">↳</span>
+														{/if}
+														<FileText class="h-3 w-3 shrink-0 {isSubMenu ? 'text-teal-400' : 'text-slate-400'}" />
+														<span class="truncate">frm_{pg.slug}</span>
+													</div>
+													<span class="text-[9px] opacity-75 shrink-0">({pg.components?.length || 0})</span>
 												</button>
-											{/each}
-										</div>
-									{/if}
+
+												<!-- Components under Active Form -->
+												{#if isActiveForm && pg.components && pg.components.length > 0}
+													<div class="pl-4 flex flex-col gap-0.5 border-l border-slate-800 my-0.5">
+														{#each pg.components as comp}
+															{@const isCompSelected = selectedComponentId === comp.id}
+															<button
+																type="button"
+																onclick={() => (selectedComponentId = comp.id)}
+																class="flex items-center gap-1 rounded px-1.5 py-0.5 text-left text-[10px] transition {isCompSelected ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'}"
+															>
+																<span class="text-slate-500">•</span>
+																<span class="truncate">{comp.name}</span>
+															</button>
+														{/each}
+													</div>
+												{/if}
+											</div>
+										{/each}
+									</div>
 								</div>
 							{/each}
 						</div>
@@ -1250,10 +1288,60 @@
 										<select
 											bind:value={activePage.layout}
 											onchange={handleSavePageProperty}
-											class="w-full bg-slate-950 text-emerald-400 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer"
+											class="w-full bg-slate-950 text-emerald-400 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer text-xs"
 										>
 											<option value="single">single (1 Kolom Stacked)</option>
 											<option value="split-2">split-2 (2 Kolom Grid)</option>
+										</select>
+									</td>
+								</tr>
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<tr
+									class="border-b border-slate-800/80 hover:bg-slate-800/40"
+									onclick={() => (activePropertyHelp = { title: 'MenuGroup', desc: 'Kategori atau nama section menu grup di navigasi (contoh: Operasional & Fisik, Analitika & Monitoring).' })}
+								>
+									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+										MenuGroup
+									</td>
+									<td class="px-2 py-1">
+										<input
+											type="text"
+											bind:value={activePage.group_name}
+											onblur={handleSavePageProperty}
+											placeholder="Menu Utama"
+											list="group-presets"
+											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded font-mono text-xs"
+										/>
+										<datalist id="group-presets">
+											<option value="Operasional & Fisik">Operasional & Fisik</option>
+											<option value="Analitika & Monitoring">Analitika & Monitoring</option>
+											<option value="Kustom & Pengujian">Kustom & Pengujian</option>
+											<option value="Menu Utama">Menu Utama</option>
+										</datalist>
+									</td>
+								</tr>
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<tr
+									class="border-b border-slate-800/80 hover:bg-slate-800/40"
+									onclick={() => (activePropertyHelp = { title: 'SubMenuOf', desc: 'Jadikan halaman ini sub-menu bertingkat di bawah halaman induk yang dipilih.' })}
+								>
+									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+										SubMenuOf
+									</td>
+									<td class="px-2 py-1">
+										<select
+											bind:value={activePage.parent_slug}
+											onchange={handleSavePageProperty}
+											class="w-full bg-slate-950 text-slate-200 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer text-xs"
+										>
+											<option value={null}>(None - Top Level Menu)</option>
+											{#each runtimeApp?.pages.filter((p) => p.slug !== activePage?.slug && !p.parent_slug) || [] as parentCandidate}
+												<option value={parentCandidate.slug}>
+													↳ {parentCandidate.title} ({parentCandidate.slug})
+												</option>
+											{/each}
 										</select>
 									</td>
 								</tr>
@@ -1341,6 +1429,38 @@
 						<option value="single">Single Column</option>
 						<option value="split-2">Split 2 Columns</option>
 						<option value="dashboard-4">Dashboard 4 Widgets</option>
+					</select>
+				</div>
+
+				<div class="flex flex-col gap-1">
+					<label for="new-page-group" class="font-semibold text-slate-300">Menu Group</label>
+					<input
+						id="new-page-group"
+						type="text"
+						bind:value={newPageGroup}
+						placeholder="Menu Utama"
+						list="new-group-presets"
+						class="rounded border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-emerald-500 focus:outline-none"
+					/>
+					<datalist id="new-group-presets">
+						<option value="Operasional & Fisik">Operasional & Fisik</option>
+						<option value="Analitika & Monitoring">Analitika & Monitoring</option>
+						<option value="Kustom & Pengujian">Kustom & Pengujian</option>
+						<option value="Menu Utama">Menu Utama</option>
+					</datalist>
+				</div>
+
+				<div class="flex flex-col gap-1">
+					<label for="new-page-parent" class="font-semibold text-slate-300">Sub-Menu Of (Parent Form)</label>
+					<select
+						id="new-page-parent"
+						bind:value={newPageParentSlug}
+						class="rounded border border-slate-800 bg-slate-950 px-2 py-2 text-slate-200 focus:border-emerald-500 focus:outline-none cursor-pointer"
+					>
+						<option value={null}>(None - Top Level Menu)</option>
+						{#each runtimeApp?.pages.filter((p) => !p.parent_slug) || [] as p}
+							<option value={p.slug}>↳ {p.title} ({p.slug})</option>
+						{/each}
 					</select>
 				</div>
 

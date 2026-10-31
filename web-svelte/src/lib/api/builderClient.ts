@@ -16,6 +16,8 @@ export interface RuntimePage {
 	title: string;
 	icon: string;
 	layout: string;
+	group_name?: string;
+	parent_slug?: string | null;
 	order_num: number;
 	is_home: boolean;
 	components: RuntimeComponent[];
@@ -30,6 +32,7 @@ export interface RuntimeApp {
 		icon: string;
 		theme: string;
 		version: string;
+		nav_type?: 'side' | 'top';
 	};
 	pages: RuntimePage[];
 }
@@ -101,6 +104,8 @@ export async function createNewPage(data: {
 	title: string;
 	icon?: string;
 	layout?: string;
+	group_name?: string;
+	parent_slug?: string | null;
 }): Promise<{ page_id: number }> {
 	const res = await fetch(`${API_BUILDER}/pages/create`, {
 		method: 'POST',
@@ -126,6 +131,8 @@ export async function updatePage(data: {
 	slug?: string;
 	icon?: string;
 	layout?: string;
+	group_name?: string;
+	parent_slug?: string | null;
 }): Promise<void> {
 	const res = await fetch(`${API_BUILDER}/pages/update`, {
 		method: 'POST',

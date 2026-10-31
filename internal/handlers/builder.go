@@ -152,11 +152,13 @@ func HandleCreateBuilderApp(pool *pgxpool.Pool) http.HandlerFunc {
 // ============================================================================
 
 type CreatePageReq struct {
-	AppID  int    `json:"app_id"`
-	Slug   string `json:"slug"`
-	Title  string `json:"title"`
-	Icon   string `json:"icon"`
-	Layout string `json:"layout"`
+	AppID      int     `json:"app_id"`
+	Slug       string  `json:"slug"`
+	Title      string  `json:"title"`
+	Icon       string  `json:"icon"`
+	Layout     string  `json:"layout"`
+	GroupName  string  `json:"group_name"`
+	ParentSlug *string `json:"parent_slug"`
 }
 
 func HandleCreateBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
@@ -172,14 +174,17 @@ func HandleCreateBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
 		if req.Layout == "" {
 			req.Layout = "single"
 		}
+		if req.GroupName == "" {
+			req.GroupName = "Menu Utama"
+		}
 
 		var pageId int
 		query := `
-			INSERT INTO builder.pages (app_id, slug, title, icon, layout, order_num)
-			VALUES ($1, $2, $3, $4, $5, (SELECT COALESCE(MAX(order_num), 0) + 1 FROM builder.pages WHERE app_id = $1))
+			INSERT INTO builder.pages (app_id, slug, title, icon, layout, group_name, parent_slug, order_num)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT COALESCE(MAX(order_num), 0) + 1 FROM builder.pages WHERE app_id = $1))
 			RETURNING id
 		`
-		err := pool.QueryRow(r.Context(), query, req.AppID, req.Slug, req.Title, req.Icon, req.Layout).Scan(&pageId)
+		err := pool.QueryRow(r.Context(), query, req.AppID, req.Slug, req.Title, req.Icon, req.Layout, req.GroupName, req.ParentSlug).Scan(&pageId)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -214,11 +219,13 @@ func HandleDeleteBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
 }
 
 type UpdatePageReq struct {
-	PageID int    `json:"page_id"`
-	Title  string `json:"title"`
-	Slug   string `json:"slug"`
-	Icon   string `json:"icon"`
-	Layout string `json:"layout"`
+	PageID     int     `json:"page_id"`
+	Title      string  `json:"title"`
+	Slug       string  `json:"slug"`
+	Icon       string  `json:"icon"`
+	Layout     string  `json:"layout"`
+	GroupName  string  `json:"group_name"`
+	ParentSlug *string `json:"parent_slug"`
 }
 
 func HandleUpdateBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
@@ -234,13 +241,16 @@ func HandleUpdateBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
 		if req.Icon == "" {
 			req.Icon = "FileText"
 		}
+		if req.GroupName == "" {
+			req.GroupName = "Menu Utama"
+		}
 
 		query := `
 			UPDATE builder.pages
-			SET title = $2, slug = $3, icon = $4, layout = $5
+			SET title = $2, slug = $3, icon = $4, layout = $5, group_name = $6, parent_slug = $7
 			WHERE id = $1
 		`
-		_, err := pool.Exec(r.Context(), query, req.PageID, req.Title, req.Slug, req.Icon, req.Layout)
+		_, err := pool.Exec(r.Context(), query, req.PageID, req.Title, req.Slug, req.Icon, req.Layout, req.GroupName, req.ParentSlug)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
