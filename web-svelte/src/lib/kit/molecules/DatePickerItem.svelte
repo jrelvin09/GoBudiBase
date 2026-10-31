@@ -105,24 +105,25 @@
 			<Popover bind:open>
 				<PopoverTrigger>
 					{#snippet child({ props })}
-						<div class="relative">
+						<div class="relative group cursor-pointer">
 							<Input
 								{...props}
 								id={ctx.id}
 								readonly
 								{disabled}
 								value={value ? formatDate(value) : ''}
-								class="h-(--control-h) pr-9"
+								placeholder="Pilih tanggal..."
+								class="h-10 w-full rounded-xl border border-slate-700/80 bg-slate-950/80 px-3.5 py-2 pr-10 text-xs text-slate-100 shadow-sm outline-none transition group-hover:border-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 cursor-pointer placeholder:text-slate-500 font-medium"
 								aria-describedby={ctx.describedBy}
 								aria-invalid={ctx.invalid}
 							/>
-							<span class="text-muted-foreground pointer-events-none absolute inset-y-0 right-2 flex items-center">
+							<span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400 group-hover:text-emerald-400 transition">
 								<CalendarIcon class="size-4" />
 							</span>
 						</div>
 					{/snippet}
 				</PopoverTrigger>
-				<PopoverContent class="w-auto p-0">
+				<PopoverContent class="w-auto p-2.5 bg-slate-900/98 border border-slate-700/80 rounded-2xl shadow-2xl shadow-black/80 backdrop-blur-xl">
 					<div class="p-1">
 						<Calendar
 							type="single"
@@ -133,12 +134,23 @@
 							locale={getLocale()}
 						/>
 					</div>
-					<div class="flex justify-end gap-2 border-t p-2">
-						<Button variant="outline" size="sm" onclick={setToday}>{t('kit.date.today')}</Button>
+					<div class="flex items-center justify-between border-t border-slate-800/80 pt-2.5 mt-2 px-1">
+						<button
+							type="button"
+							class="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-600 hover:text-white transition shadow-sm active:scale-95 cursor-pointer"
+							onclick={setToday}
+						>
+							<CalendarIcon class="size-3.5" />
+							<span>{t('kit.date.today')}</span>
+						</button>
 						{#if !required}
-							<Button variant="ghost" size="sm" onclick={() => onCalendarChange(undefined)}
-								>{t('kit.date.clear')}</Button
+							<button
+								type="button"
+								class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-rose-400 transition cursor-pointer"
+								onclick={() => onCalendarChange(undefined)}
 							>
+								{t('kit.date.clear')}
+							</button>
 						{/if}
 					</div>
 				</PopoverContent>
