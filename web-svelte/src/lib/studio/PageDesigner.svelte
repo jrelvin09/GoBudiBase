@@ -67,6 +67,7 @@
 	let leftTab = $state<'tree' | 'palette' | 'tables'>('tree');
 	let isPreviewMode = $state(false);
 	let saveSuccess = $state(false);
+	let isDraggingOver = $state(false);
 
 	// Add Page modal state
 	let showAddPageModal = $state(false);
@@ -425,8 +426,13 @@
 								{@const Icon = item.icon}
 								<button
 									type="button"
+									draggable="true"
+									ondragstart={(e) => {
+										e.dataTransfer?.setData('text/gobudibase-component', item.type);
+										e.dataTransfer?.setData('text/plain', item.name);
+									}}
 									onclick={() => handleAddComponent(item.type, item.name)}
-									class="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-950/50 p-2 text-left transition hover:border-emerald-500/50 hover:bg-emerald-950/20 group"
+									class="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-950/50 p-2 text-left transition hover:border-emerald-500/50 hover:bg-emerald-950/20 group cursor-grab active:cursor-grabbing"
 								>
 									<div class="rounded bg-slate-800 p-1.5 text-slate-400 group-hover:text-emerald-400 transition shrink-0">
 										<Icon class="h-4 w-4" />
@@ -484,18 +490,97 @@
 				</span>
 			</div>
 
-			<!-- Canvas Body Area -->
-			<div class="flex-1 overflow-y-auto p-4">
+			<!-- Canvas Body Area with Drag & Drop Listener -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="flex-1 overflow-y-auto p-4 transition-colors {isDraggingOver ? 'bg-emerald-950/20 ring-2 ring-inset ring-emerald-500/60' : ''}"
+				ondragover={(e) => {
+					e.preventDefault();
+					e.dataTransfer!.dropEffect = 'copy';
+					isDraggingOver = true;
+				}}
+				ondragleave={(e) => {
+					if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+						isDraggingOver = false;
+					}
+				}}
+				ondrop={(e) => {
+					e.preventDefault();
+					isDraggingOver = false;
+					const compType = e.dataTransfer?.getData('text/gobudibase-component');
+					const compName = e.dataTransfer?.getData('text/plain');
+					if (compType) {
+						handleAddComponent(compType, compName || compType);
+					}
+				}}
+			>
 				{#if !activePage?.components || activePage.components.length === 0}
-					<div class="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 p-8 text-center text-slate-500">
-						<Box class="h-10 w-10 text-slate-700 mb-2" />
-						<p class="text-xs font-semibold text-slate-400">Kanvas Kosong</p>
-						<p class="text-[11px] text-slate-600 mt-1 max-w-xs">Tambahkan komponen dari panel Palette atau pilih tabel di panel Schema untuk auto-generate grid.</p>
+					<div class="flex h-full min-h-[380px] flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition {isDraggingOver ? 'border-emerald-400 bg-emerald-950/40 text-emerald-200' : 'border-slate-800 bg-slate-950/30 text-slate-500'}">
+						<div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800/80 mb-3 text-emerald-400 shadow-inner">
+							<Box class="h-6 w-6" />
+						</div>
+						<p class="text-sm font-bold text-slate-200">Kanvas Masih Kosong</p>
+						<p class="text-xs text-slate-400 mt-1 max-w-sm">
+							Tarik (<span class="text-emerald-400 font-semibold">drag & drop</span>) komponen dari panel kiri, atau klik pintasan langsung di bawah:
+						</p>
+
+						<!-- Quick Add Action Buttons on Empty Canvas -->
+						<div class="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-lg">
+							<button
+								type="button"
+								onclick={() => handleAddComponent('interactive_grid', 'Data Grid Utama')}
+								class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-emerald-500/60 hover:bg-emerald-950/30 hover:text-emerald-300 transition shadow-sm"
+							>
+								<TableProperties class="h-3.5 w-3.5 text-emerald-400" />
+								+ Interactive Grid
+							</button>
+							<button
+								type="button"
+								onclick={() => handleAddComponent('kanban', 'Papan Kanban')}
+								class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-purple-500/60 hover:bg-purple-950/30 hover:text-purple-300 transition shadow-sm"
+							>
+								<LayoutGrid class="h-3.5 w-3.5 text-purple-400" />
+								+ Kanban Board
+							</button>
+							<button
+								type="button"
+								onclick={() => handleAddComponent('shuttle', 'Dual Shuttle Selector')}
+								class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-amber-500/60 hover:bg-amber-950/30 hover:text-amber-300 transition shadow-sm"
+							>
+								<ArrowLeftRight class="h-3.5 w-3.5 text-amber-400" />
+								+ Shuttle Selector
+							</button>
+							<button
+								type="button"
+								onclick={() => handleAddComponent('popup_lov', 'Cari Item (Popup LOV)')}
+								class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-cyan-500/60 hover:bg-cyan-950/30 hover:text-cyan-300 transition shadow-sm"
+							>
+								<Search class="h-3.5 w-3.5 text-cyan-400" />
+								+ Popup LOV
+							</button>
+							<button
+								type="button"
+								onclick={() => handleAddComponent('chart_dashboard', 'Grafik Penjualan')}
+								class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-blue-500/60 hover:bg-blue-950/30 hover:text-blue-300 transition shadow-sm"
+							>
+								<ChartBar class="h-3.5 w-3.5 text-blue-400" />
+								+ Chart Dashboard
+							</button>
+							<button
+								type="button"
+								onclick={() => (leftTab = 'palette')}
+								class="flex items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-950/40 px-3 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-900/50 transition shadow-sm"
+							>
+								Buka Tab Palette (22 Komponen) →
+							</button>
+						</div>
 					</div>
 				{:else}
 					<div class="flex flex-col gap-4">
 						{#each activePage.components as comp}
 							{@const isSelected = selectedComponentId === comp.id}
+							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
 							<div
 								class="relative rounded-xl border p-4 transition cursor-pointer {isSelected ? 'border-emerald-500 bg-slate-900/90 ring-1 ring-emerald-500/50 shadow-lg' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'}"
 								onclick={() => (selectedComponentId = comp.id)}
@@ -508,9 +593,22 @@
 										</span>
 										<h4 class="text-xs font-bold text-slate-200">{comp.name}</h4>
 									</div>
-									<span class="text-[10px] font-mono text-slate-500">
-										Source: {comp.datasource_type}
-									</span>
+									<div class="flex items-center gap-2">
+										<span class="text-[10px] font-mono text-slate-500">
+											Source: {comp.datasource_type}
+										</span>
+										<button
+											type="button"
+											onclick={(e) => {
+												e.stopPropagation();
+												handleDeleteComponent(comp.id);
+											}}
+											class="rounded p-1 text-slate-500 hover:bg-red-950/50 hover:text-red-400 transition"
+											title="Hapus komponen dari page"
+										>
+											<Trash2 class="h-3.5 w-3.5" />
+										</button>
+									</div>
 								</div>
 
 								<!-- Mock Component Wireframe Preview -->
@@ -523,6 +621,45 @@
 											</div>
 											<div class="h-16 rounded bg-slate-900 border border-slate-800 flex items-center justify-center text-[11px] font-mono text-slate-500">
 												[ InteractiveGrid: Sort • Filter • Inline Edit • Export ]
+											</div>
+										</div>
+									{:else if comp.type === 'kanban'}
+										<div class="flex flex-col gap-2">
+											<div class="flex items-center justify-between text-xs">
+												<span class="font-semibold text-purple-300">Kanban Swimlanes</span>
+												<span class="font-mono text-[10px] text-purple-400">Drag & Drop Ready</span>
+											</div>
+											<div class="grid grid-cols-3 gap-2">
+												<div class="rounded bg-slate-900 border border-slate-800 p-2 text-[10px] text-slate-400 text-center">Backlog</div>
+												<div class="rounded bg-slate-900 border border-purple-900/50 p-2 text-[10px] text-purple-300 text-center">In Progress</div>
+												<div class="rounded bg-slate-900 border border-emerald-900/50 p-2 text-[10px] text-emerald-300 text-center">Done</div>
+											</div>
+										</div>
+									{:else if comp.type === 'shuttle'}
+										<div class="flex flex-col gap-2">
+											<div class="flex items-center justify-between text-xs">
+												<span class="font-semibold text-amber-300">Dual Shuttle Transfer</span>
+												<span class="font-mono text-[10px] text-amber-400">Multi-Select</span>
+											</div>
+											<div class="grid grid-cols-5 gap-2 items-center">
+												<div class="col-span-2 rounded bg-slate-900 border border-slate-800 p-2 text-[10px] text-slate-400 text-center">Tersedia</div>
+												<div class="col-span-1 text-center text-amber-400 font-bold text-xs">⇄</div>
+												<div class="col-span-2 rounded bg-slate-900 border border-amber-900/40 p-2 text-[10px] text-amber-300 text-center">Terpilih</div>
+											</div>
+										</div>
+									{:else if comp.type === 'popup_lov'}
+										<div class="flex items-center justify-between rounded bg-slate-900 border border-slate-800 p-2.5 text-xs text-slate-400">
+											<span class="text-slate-300 font-mono">[Cari Data / Popup LOV Modal Dialog]</span>
+											<span class="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-cyan-400 font-bold">🔍 Pilih</span>
+										</div>
+									{:else if comp.type === 'chart_dashboard'}
+										<div class="flex flex-col gap-1.5">
+											<div class="flex items-center justify-between text-xs font-semibold text-blue-300">
+												<span>Sales & Performance Metrics</span>
+												<span class="font-mono text-[10px] text-blue-400">Live SVG / Canvas</span>
+											</div>
+											<div class="h-16 rounded bg-slate-900 border border-slate-800 flex items-center justify-center text-[11px] font-mono text-slate-500">
+												[ Interactive Charts: Bar • Line • Area • Donut ]
 											</div>
 										</div>
 									{:else if comp.type === 'pivot_matrix'}
@@ -553,6 +690,46 @@
 								</div>
 							</div>
 						{/each}
+
+						<!-- Bottom Quick-Add & Drop Zone Strip -->
+						<div
+							class="flex items-center justify-between rounded-xl border-2 border-dashed p-3 transition {isDraggingOver ? 'border-emerald-400 bg-emerald-950/30 ring-2 ring-emerald-500/50 text-emerald-300' : 'border-slate-800/80 bg-slate-950/20 text-slate-500 hover:border-slate-700'}"
+						>
+							<div class="flex items-center gap-2 text-xs">
+								<Plus class="h-4 w-4 text-emerald-400" />
+								<span class="font-medium text-slate-400">Tarik komponen ke sini, atau</span>
+								<button
+									type="button"
+									onclick={() => (leftTab = 'palette')}
+									class="font-bold text-emerald-400 hover:underline"
+								>
+									buka Palette (22 Komponen)
+								</button>
+							</div>
+							<div class="flex items-center gap-1.5">
+								<button
+									type="button"
+									onclick={() => handleAddComponent('interactive_grid', 'Grid Tambahan')}
+									class="rounded bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:bg-emerald-600 hover:text-white transition"
+								>
+									+ Grid
+								</button>
+								<button
+									type="button"
+									onclick={() => handleAddComponent('kanban', 'Kanban Tambahan')}
+									class="rounded bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:bg-purple-600 hover:text-white transition"
+								>
+									+ Kanban
+								</button>
+								<button
+									type="button"
+									onclick={() => handleAddComponent('shuttle', 'Shuttle Baru')}
+									class="rounded bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:bg-amber-600 hover:text-white transition"
+								>
+									+ Shuttle
+								</button>
+							</div>
+						</div>
 					</div>
 				{/if}
 			</div>
