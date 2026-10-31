@@ -14,6 +14,13 @@
 	import ShuttleSelector from '$lib/apex/ShuttleSelector.svelte';
 	import PopupLovDemo from '$lib/apex/PopupLovDemo.svelte';
 	import NavigationLayout from '$lib/runtime/NavigationLayout.svelte';
+	import DataProvider from '$lib/blocks/DataProvider.svelte';
+	import TableBlock from '$lib/blocks/TableBlock.svelte';
+	import FormBlock from '$lib/blocks/FormBlock.svelte';
+	import CardsRepeater from '$lib/blocks/CardsRepeater.svelte';
+	import ChartBlock from '$lib/blocks/ChartBlock.svelte';
+	import ContainerSection from '$lib/blocks/ContainerSection.svelte';
+	import { runActionChain, type ActionStep } from '$lib/runtime/actionRunner';
 	import { catalog } from '$lib/kit/catalog';
 	import { exportBastPdf } from '$lib/utils/pdfExport';
 	import {
@@ -49,6 +56,18 @@
 	let bastDocNo = $state('BAST-2026/X/0842');
 	let bastSignature = $state('');
 	let bastSuccess = $state(false);
+
+	async function handleButtonClick(comp: RuntimeComponent) {
+		if (comp.actions && comp.actions.length > 0) {
+			await runActionChain(comp.actions as ActionStep[], {
+				currentPage: activePageSlug,
+				onNavigate: (slug) => { activePageSlug = slug; },
+				onNotify: (msg) => { alert(msg); }
+			});
+		} else {
+			alert(`Aksi Tombol "${comp.props?.title || comp.name}" dijalankan!`);
+		}
+	}
 
 	async function loadRuntime() {
 		loading = true;
@@ -168,7 +187,7 @@
 										<button
 											type="button"
 											class="rounded-xl px-6 py-2.5 font-bold text-sm text-white shadow-lg shadow-emerald-600/25 transition active:scale-95 cursor-pointer {comp.props?.variant === 'danger' || comp.props?.variant === 'destructive' ? 'bg-rose-600 hover:bg-rose-500' : comp.props?.variant === 'secondary' ? 'bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200' : comp.props?.variant === 'outline' ? 'border border-emerald-500/50 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-emerald-600 hover:bg-emerald-500'}"
-											onclick={() => alert(`Aksi Tombol "${comp.props?.title || comp.name}" dijalankan!`)}
+											onclick={() => handleButtonClick(comp)}
 										>
 											{comp.props?.title || comp.name || 'Button'}
 										</button>
@@ -215,6 +234,38 @@
 											<span class="text-amber-200/80">Informasi atau notifikasi penting pada form ini.</span>
 										</div>
 									</div>
+								<!-- Budibase Smart Blocks -->
+								{:else if comp.type === 'data_provider'}
+									<DataProvider
+										title={comp.props?.title || comp.name}
+										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
+									/>
+								{:else if comp.type === 'table_block'}
+									<TableBlock
+										title={comp.props?.title || comp.name}
+										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
+									/>
+								{:else if comp.type === 'form_block'}
+									<FormBlock
+										title={comp.props?.title || comp.name}
+										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
+										mode={(comp.datasource_config?.mode as any) || (comp.props?.mode as any) || 'create'}
+									/>
+								{:else if comp.type === 'cards_repeater'}
+									<CardsRepeater
+										title={comp.props?.title || comp.name}
+										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
+									/>
+								{:else if comp.type === 'chart_block'}
+									<ChartBlock
+										title={comp.props?.title || comp.name}
+										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
+										chartType={(comp.props?.chartType as any) || 'bar'}
+									/>
+								{:else if comp.type === 'container_section'}
+									<ContainerSection
+										title={comp.props?.title || comp.name}
+									/>
 								{:else if comp.type.startsWith('kit:') || catalog.some(c => c.id === comp.type)}
 									{@const kitId = comp.type.startsWith('kit:') ? comp.type.slice(4) : comp.type}
 									{@const entry = catalog.find((c) => c.id === kitId)}
@@ -359,7 +410,7 @@
 										<button
 											type="button"
 											class="rounded-xl px-6 py-2.5 font-bold text-sm text-white shadow-lg shadow-emerald-600/25 transition active:scale-95 cursor-pointer {comp.props?.variant === 'danger' || comp.props?.variant === 'destructive' ? 'bg-rose-600 hover:bg-rose-500' : comp.props?.variant === 'secondary' ? 'bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200' : comp.props?.variant === 'outline' ? 'border border-emerald-500/50 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-emerald-600 hover:bg-emerald-500'}"
-											onclick={() => alert(`Aksi Tombol "${comp.props?.title || comp.name}" dijalankan!`)}
+											onclick={() => handleButtonClick(comp)}
 										>
 											{comp.props?.title || comp.name || 'Button'}
 										</button>
@@ -406,6 +457,38 @@
 											<span class="text-amber-200/80">Informasi atau notifikasi penting pada form ini.</span>
 										</div>
 									</div>
+								<!-- Budibase Smart Blocks -->
+								{:else if comp.type === 'data_provider'}
+									<DataProvider
+										title={comp.props?.title || comp.name}
+										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
+									/>
+								{:else if comp.type === 'table_block'}
+									<TableBlock
+										title={comp.props?.title || comp.name}
+										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
+									/>
+								{:else if comp.type === 'form_block'}
+									<FormBlock
+										title={comp.props?.title || comp.name}
+										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
+										mode={(comp.datasource_config?.mode as any) || (comp.props?.mode as any) || 'create'}
+									/>
+								{:else if comp.type === 'cards_repeater'}
+									<CardsRepeater
+										title={comp.props?.title || comp.name}
+										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
+									/>
+								{:else if comp.type === 'chart_block'}
+									<ChartBlock
+										title={comp.props?.title || comp.name}
+										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
+										chartType={(comp.props?.chartType as any) || 'bar'}
+									/>
+								{:else if comp.type === 'container_section'}
+									<ContainerSection
+										title={comp.props?.title || comp.name}
+									/>
 								{:else if comp.type.startsWith('kit:') || catalog.some(c => c.id === comp.type)}
 									{@const kitId = comp.type.startsWith('kit:') ? comp.type.slice(4) : comp.type}
 									{@const entry = catalog.find((c) => c.id === kitId)}

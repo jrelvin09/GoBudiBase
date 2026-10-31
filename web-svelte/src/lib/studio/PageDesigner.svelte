@@ -290,7 +290,8 @@
 				layout: activePage.layout || 'single',
 				icon: activePage.icon || 'FileText',
 				group_name: activePage.group_name || 'Menu Utama',
-				parent_slug: activePage.parent_slug || null
+				parent_slug: activePage.parent_slug || null,
+				min_role: activePage.min_role || 'public'
 			});
 			triggerSaveNotification();
 		} catch (e) {
@@ -946,6 +947,58 @@
 												<div class="flex items-center gap-2 rounded bg-amber-950/20 border border-amber-500/30 p-2 text-xs text-amber-200">
 													<span class="font-bold">⚠️ {comp.props?.title || comp.name}</span>
 												</div>
+										{:else if comp.type === 'data_provider'}
+											<div class="rounded border border-purple-800/50 bg-purple-950/20 p-2 text-xs text-purple-300 flex items-center justify-between">
+												<div class="flex items-center gap-1.5 font-mono text-[11px]">
+													<Database class="h-3.5 w-3.5 text-purple-400" />
+													<span>Data Provider: {comp.datasource_config?.table || comp.props?.table || 'bmn_items'}</span>
+												</div>
+												<span class="rounded bg-purple-900/60 px-1.5 py-0.2 font-mono text-[9px] text-purple-200">EXPOSE BINDINGS</span>
+											</div>
+										{:else if comp.type === 'table_block'}
+											<div class="flex flex-col gap-1 rounded border border-purple-800/40 bg-slate-950 p-2">
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="font-bold text-slate-200">⚡ Table Block: {comp.props?.title || comp.name}</span>
+													<span class="font-mono text-[9px] text-purple-400">Search • Sort • Paginate • CRUD</span>
+												</div>
+												<div class="grid grid-cols-4 gap-1 text-[9px] text-slate-500 font-mono border-t border-slate-800 pt-1">
+													<span>id</span><span>name</span><span>status</span><span>[actions]</span>
+												</div>
+											</div>
+										{:else if comp.type === 'form_block'}
+											<div class="flex flex-col gap-1.5 rounded border border-purple-800/40 bg-slate-950 p-2">
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="font-bold text-purple-300">📝 Form Block: {comp.props?.title || comp.name}</span>
+													<span class="rounded bg-purple-900/50 px-1 py-0.2 text-[9px] text-purple-200 font-mono uppercase">{comp.datasource_config?.mode || 'create'}</span>
+												</div>
+												<div class="grid grid-cols-2 gap-1 text-[10px] text-slate-400">
+													<div class="rounded bg-slate-900 border border-slate-800 px-2 py-0.5">Input Field A</div>
+													<div class="rounded bg-slate-900 border border-slate-800 px-2 py-0.5">Input Field B</div>
+												</div>
+											</div>
+										{:else if comp.type === 'cards_repeater'}
+											<div class="grid grid-cols-3 gap-1 rounded border border-purple-800/40 bg-slate-950 p-2">
+												<div class="rounded bg-slate-900 border border-slate-800 p-1 text-[9px] text-slate-400 text-center">Card 1</div>
+												<div class="rounded bg-slate-900 border border-slate-800 p-1 text-[9px] text-slate-400 text-center">Card 2</div>
+												<div class="rounded bg-slate-900 border border-slate-800 p-1 text-[9px] text-slate-400 text-center">Card 3</div>
+											</div>
+										{:else if comp.type === 'chart_block'}
+											<div class="flex flex-col gap-1 rounded border border-purple-800/40 bg-slate-950 p-2">
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="font-bold text-slate-200">📊 Chart Block: {comp.props?.title || comp.name}</span>
+													<span class="font-mono text-[9px] text-purple-400">Bar / Donut</span>
+												</div>
+												<div class="flex items-end gap-1 h-8 pt-1">
+													<div class="flex-1 bg-purple-500/70 h-4 rounded-t"></div>
+													<div class="flex-1 bg-emerald-500/70 h-7 rounded-t"></div>
+													<div class="flex-1 bg-amber-500/70 h-5 rounded-t"></div>
+													<div class="flex-1 bg-indigo-500/70 h-8 rounded-t"></div>
+												</div>
+											</div>
+										{:else if comp.type === 'container_section'}
+											<div class="rounded border border-dashed border-purple-700/60 bg-purple-950/10 p-2.5 text-center text-[10px] text-purple-300">
+												[ Container / Section Box ]
+											</div>
 											{:else if comp.type.startsWith('kit:')}
 												<div class="flex items-center justify-between text-xs">
 													<span class="font-semibold text-indigo-300">{comp.name}</span>
@@ -1341,6 +1394,86 @@
 								</tr>
 							</tbody>
 						</table>
+						<!-- Action Chains Inspector for Selected Component -->
+						<div class="border-t border-slate-800 bg-slate-950/90 p-2.5">
+							<div class="flex items-center justify-between mb-2">
+								<div class="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+									<Zap class="h-3.5 w-3.5 text-amber-400" />
+									<span>Action Chains</span>
+									<span class="rounded bg-amber-500/10 px-1.5 py-0.2 font-mono text-[9px] text-amber-400 border border-amber-500/20">{selectedComponent.actions?.length || 0}</span>
+								</div>
+								<button
+									type="button"
+									onclick={() => {
+										if (!selectedComponent.actions) selectedComponent.actions = [];
+										selectedComponent.actions.push({ type: 'toast', message: 'Aksi dijalankan!', toastType: 'success' });
+										handleSaveComponentProperty();
+									}}
+									class="rounded bg-amber-600/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold hover:bg-amber-600/30 transition"
+								>
+									+ Action
+								</button>
+							</div>
+							<div class="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+								{#each selectedComponent.actions || [] as action, actIdx}
+									<div class="rounded border border-slate-800 bg-slate-900 p-2 text-[11px] flex flex-col gap-1.5">
+										<div class="flex items-center justify-between">
+											<select
+												bind:value={action.type}
+												onchange={handleSaveComponentProperty}
+												class="bg-slate-950 text-amber-400 font-bold border border-slate-800 rounded px-1.5 py-0.5 outline-none text-[10px]"
+											>
+												<option value="navigate">Navigate to Page</option>
+												<option value="toast">Show Toast</option>
+												<option value="save_row">Save Row (CRUD)</option>
+												<option value="delete_row">Delete Row</option>
+												<option value="query">Execute SQL</option>
+											</select>
+											<button
+												type="button"
+												onclick={() => { selectedComponent.actions.splice(actIdx, 1); handleSaveComponentProperty(); }}
+												class="text-slate-500 hover:text-rose-400 p-0.5"
+											>
+												<Trash2 class="h-3 w-3" />
+											</button>
+										</div>
+										{#if action.type === 'navigate'}
+											<input
+												type="text"
+												bind:value={action.targetPage}
+												onblur={handleSaveComponentProperty}
+												placeholder="Page Slug (e.g. bmn_list)"
+												class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-200 outline-none font-mono text-[10px]"
+											/>
+										{:else if action.type === 'toast'}
+											<input
+												type="text"
+												bind:value={action.message}
+												onblur={handleSaveComponentProperty}
+												placeholder="Pesan Toast (e.g. Simpan Sukses!)"
+												class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-200 outline-none text-[10px]"
+											/>
+										{:else if action.type === 'save_row' || action.type === 'delete_row'}
+											<input
+												type="text"
+												bind:value={action.table}
+												onblur={handleSaveComponentProperty}
+												placeholder="Tabel target (e.g. bmn_items)"
+												class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-200 outline-none font-mono text-[10px]"
+											/>
+										{:else if action.type === 'query'}
+											<input
+												type="text"
+												bind:value={action.sql}
+												onblur={handleSaveComponentProperty}
+												placeholder="SQL Query (e.g. UPDATE ...)"
+												class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-200 outline-none font-mono text-[10px]"
+											/>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						</div>
 					{:else if activePage}
 						<!-- Form Properties -->
 						<table class="w-full border-collapse text-left">
@@ -1457,6 +1590,28 @@
 									</td>
 									<td class="px-2 py-1 font-mono text-slate-300">
 										{activePage.components?.length || 0} items
+									</td>
+								</tr>
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<tr
+									class="border-b border-slate-800/80 hover:bg-slate-800/40"
+									onclick={() => (activePropertyHelp = { title: 'MinRole', desc: 'Hak akses peran minimum untuk membuka form ini di aplikasi (public, basic, power, admin).' })}
+								>
+									<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+										MinRole
+									</td>
+									<td class="px-2 py-1">
+										<select
+											bind:value={activePage.min_role}
+											onchange={handleSavePageProperty}
+											class="w-full bg-slate-950 text-indigo-400 border border-slate-800 rounded px-1 py-0.5 outline-none cursor-pointer text-xs font-bold"
+										>
+											<option value="public">public (Semua Pengguna)</option>
+											<option value="basic">basic (Basic User)</option>
+											<option value="power">power (Power User)</option>
+											<option value="admin">admin (Administrator)</option>
+										</select>
 									</td>
 								</tr>
 							</tbody>

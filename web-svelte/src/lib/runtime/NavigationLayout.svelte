@@ -56,6 +56,15 @@
 	let mobileDrawerOpen = $state(false);
 	let menuSearch = $state('');
 
+	// RBAC Current Role for Screen Visibility
+	let currentRole = $state<'admin' | 'power' | 'basic' | 'public'>('admin');
+	const roleLevels: Record<string, number> = {
+		admin: 100,
+		power: 50,
+		basic: 20,
+		public: 0
+	};
+
 	// Accordion state for group sections & parent menus
 	let expandedGroups = $state<Record<string, boolean>>({});
 	let expandedParents = $state<Record<string, boolean>>({});
@@ -85,15 +94,21 @@
 	const menuGroups = $derived.by<MenuGroup[]>(() => {
 		const groups: Record<string, MenuGroup> = {};
 
-		// 1. Filter by search query if any
+		// 1. Filter by RBAC role & search query if any
+		const userLevel = roleLevels[currentRole] ?? 100;
+		const rbacFiltered = pages.filter((p) => {
+			const reqLevel = roleLevels[p.min_role || 'public'] ?? 0;
+			return reqLevel <= userLevel;
+		});
+
 		const filtered = menuSearch.trim()
-			? pages.filter(
+			? rbacFiltered.filter(
 					(p) =>
 						p.title.toLowerCase().includes(menuSearch.toLowerCase()) ||
 						p.slug.toLowerCase().includes(menuSearch.toLowerCase()) ||
 						(p.group_name || '').toLowerCase().includes(menuSearch.toLowerCase())
 				)
-			: pages;
+			: rbacFiltered;
 
 		for (const page of filtered) {
 			const groupName = page.group_name || 'Menu Utama';
@@ -234,6 +249,22 @@
 					<RefreshCw class="h-3.5 w-3.5" />
 				</button>
 			{/if}
+
+			<!-- RBAC Role Quick Switcher -->
+			<div class="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-950/80 px-2.5 py-1 text-xs">
+				<ShieldCheck class="h-3.5 w-3.5 text-indigo-400" />
+				<span class="text-slate-500 font-mono text-[10px] hidden sm:inline">Role:</span>
+				<select
+					bind:value={currentRole}
+					class="bg-transparent text-indigo-300 font-bold outline-none cursor-pointer text-xs"
+					title="Switch User Role to test Screen Permissions"
+				>
+					<option value="admin" class="bg-slate-900 text-slate-100">Admin (100)</option>
+					<option value="power" class="bg-slate-900 text-slate-100">Power User (50)</option>
+					<option value="basic" class="bg-slate-900 text-slate-100">Basic User (20)</option>
+					<option value="public" class="bg-slate-900 text-slate-100">Public (0)</option>
+				</select>
+			</div>
 		</div>
 	</header>
 

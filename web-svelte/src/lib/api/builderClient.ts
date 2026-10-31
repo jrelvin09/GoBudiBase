@@ -18,9 +18,27 @@ export interface RuntimePage {
 	layout: string;
 	group_name?: string;
 	parent_slug?: string | null;
+	min_role?: string;
 	order_num: number;
 	is_home: boolean;
 	components: RuntimeComponent[];
+}
+
+export interface AppRole {
+	slug: string;
+	name: string;
+	level: number;
+	description: string;
+}
+
+export interface AppAutomation {
+	id: number;
+	name: string;
+	description: string;
+	trigger_type: string;
+	trigger_config: Record<string, unknown>;
+	steps: Array<Record<string, unknown>>;
+	is_active: boolean;
 }
 
 export interface RuntimeApp {
@@ -35,6 +53,8 @@ export interface RuntimeApp {
 		nav_type?: 'side' | 'top';
 	};
 	pages: RuntimePage[];
+	roles?: AppRole[];
+	automations?: AppAutomation[];
 }
 
 export interface AppListItem {
@@ -133,6 +153,7 @@ export async function updatePage(data: {
 	layout?: string;
 	group_name?: string;
 	parent_slug?: string | null;
+	min_role?: string;
 }): Promise<void> {
 	const res = await fetch(`${API_BUILDER}/pages/update`, {
 		method: 'POST',
@@ -208,6 +229,25 @@ export async function executeSqlStudio(sql: string, limit: number = 100): Promis
 	if (!res.ok) {
 		const err = await res.json().catch(() => ({ error: 'Query execution failed' }));
 		throw new Error(err.error || 'Query failed');
+	}
+	return res.json();
+}
+
+export interface BatchOperation {
+	op: 'create' | 'update' | 'delete';
+	id?: any;
+	values?: Record<string, unknown>;
+}
+
+export async function executeBatch(table: string, ops: BatchOperation[]): Promise<{ status: string; results: any[] }> {
+	const res = await fetch(`${API_BUILDER}/batch`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ table, ops })
+	});
+	if (!res.ok) {
+		const err = await res.json().catch(() => ({ error: 'Batch operation failed' }));
+		throw new Error(err.error || 'Batch operation failed');
 	}
 	return res.json();
 }

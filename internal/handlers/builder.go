@@ -159,6 +159,7 @@ type CreatePageReq struct {
 	Layout     string  `json:"layout"`
 	GroupName  string  `json:"group_name"`
 	ParentSlug *string `json:"parent_slug"`
+	MinRole    string  `json:"min_role"`
 }
 
 func HandleCreateBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
@@ -177,14 +178,17 @@ func HandleCreateBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
 		if req.GroupName == "" {
 			req.GroupName = "Menu Utama"
 		}
+		if req.MinRole == "" {
+			req.MinRole = "public"
+		}
 
 		var pageId int
 		query := `
-			INSERT INTO builder.pages (app_id, slug, title, icon, layout, group_name, parent_slug, order_num)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT COALESCE(MAX(order_num), 0) + 1 FROM builder.pages WHERE app_id = $1))
+			INSERT INTO builder.pages (app_id, slug, title, icon, layout, group_name, parent_slug, min_role, order_num)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, (SELECT COALESCE(MAX(order_num), 0) + 1 FROM builder.pages WHERE app_id = $1))
 			RETURNING id
 		`
-		err := pool.QueryRow(r.Context(), query, req.AppID, req.Slug, req.Title, req.Icon, req.Layout, req.GroupName, req.ParentSlug).Scan(&pageId)
+		err := pool.QueryRow(r.Context(), query, req.AppID, req.Slug, req.Title, req.Icon, req.Layout, req.GroupName, req.ParentSlug, req.MinRole).Scan(&pageId)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -226,6 +230,7 @@ type UpdatePageReq struct {
 	Layout     string  `json:"layout"`
 	GroupName  string  `json:"group_name"`
 	ParentSlug *string `json:"parent_slug"`
+	MinRole    string  `json:"min_role"`
 }
 
 func HandleUpdateBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
@@ -244,13 +249,16 @@ func HandleUpdateBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
 		if req.GroupName == "" {
 			req.GroupName = "Menu Utama"
 		}
+		if req.MinRole == "" {
+			req.MinRole = "public"
+		}
 
 		query := `
 			UPDATE builder.pages
-			SET title = $2, slug = $3, icon = $4, layout = $5, group_name = $6, parent_slug = $7
+			SET title = $2, slug = $3, icon = $4, layout = $5, group_name = $6, parent_slug = $7, min_role = $8
 			WHERE id = $1
 		`
-		_, err := pool.Exec(r.Context(), query, req.PageID, req.Title, req.Slug, req.Icon, req.Layout, req.GroupName, req.ParentSlug)
+		_, err := pool.Exec(r.Context(), query, req.PageID, req.Title, req.Slug, req.Icon, req.Layout, req.GroupName, req.ParentSlug, req.MinRole)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
