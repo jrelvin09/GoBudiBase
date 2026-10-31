@@ -66,6 +66,29 @@ func main() {
 
 		r.Post("/reports/save", handlers.HandleSaveReport(pool))
 		r.Post("/reports/load", handlers.HandleLoadReports(pool))
+
+		// Low-Code App Builder & Dynamic Runtime Routes
+		r.Route("/builder", func(r chi.Router) {
+			r.Get("/runtime", handlers.HandleGetRuntimeApp(pool))
+			r.Post("/runtime", handlers.HandleGetRuntimeApp(pool))
+
+			r.Get("/apps", handlers.HandleListBuilderApps(pool))
+			r.Post("/apps", handlers.HandleListBuilderApps(pool))
+			r.Post("/apps/create", handlers.HandleCreateBuilderApp(pool))
+
+			r.Post("/pages/create", handlers.HandleCreateBuilderPage(pool))
+			r.Post("/pages/delete", handlers.HandleDeleteBuilderPage(pool))
+
+			r.Post("/components/create", handlers.HandleCreateBuilderComponent(pool))
+			r.Post("/components/update", handlers.HandleUpdateBuilderComponent(pool))
+			r.Post("/components/delete", handlers.HandleDeleteBuilderComponent(pool))
+
+			r.Get("/schema/tables", handlers.HandleGetSchemaTables(pool))
+			r.Post("/schema/tables", handlers.HandleGetSchemaTables(pool))
+			r.Get("/schema/columns", handlers.HandleGetTableColumns(pool))
+			r.Post("/schema/columns", handlers.HandleGetTableColumns(pool))
+			r.Post("/query/execute", handlers.HandleExecuteBuilderQuery(pool))
+		})
 	})
 
 	server := &http.Server{
