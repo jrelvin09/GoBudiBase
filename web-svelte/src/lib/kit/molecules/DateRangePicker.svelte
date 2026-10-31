@@ -6,8 +6,8 @@
 	let {
 		id = 'drp-' + Math.random().toString(36).substring(2, 7),
 		label = 'Rentang Tanggal',
-		startDate = $bindable<string | null>(null),
-		endDate = $bindable<string | null>(null),
+		startDate = $bindable<string | null | undefined>(),
+		endDate = $bindable<string | null | undefined>(),
 		onchange,
 		class: className = ''
 	}: {

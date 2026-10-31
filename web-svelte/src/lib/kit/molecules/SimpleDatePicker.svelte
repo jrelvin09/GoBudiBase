@@ -8,7 +8,7 @@
 	let {
 		id = 'dp-' + Math.random().toString(36).substring(2, 7),
 		label = 'Tanggal',
-		value = $bindable<string | null>(null),
+		value = $bindable<string | null | undefined>(),
 		placeholder = 'Pilih tanggal...',
 		min,
 		max,
@@ -31,9 +31,23 @@
 
 	let open = $state(false);
 
-	const calendarValue = $derived(value ? parseDate(value) : undefined);
-	const minValue = $derived(min ? parseDate(min) : undefined);
-	const maxValue = $derived(max ? parseDate(max) : undefined);
+	function safeParseDate(val: string | null | undefined): DateValue | undefined {
+		if (!val) return undefined;
+		try {
+			const str = typeof val === 'string' ? val.trim() : String(val);
+			const dateStr = str.includes('T') ? str.split('T')[0] : str;
+			if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+				return parseDate(dateStr);
+			}
+		} catch {
+			// ignore
+		}
+		return undefined;
+	}
+
+	const calendarValue = $derived(safeParseDate(value));
+	const minValue = $derived(safeParseDate(min));
+	const maxValue = $derived(safeParseDate(max));
 
 	function formatDateIndo(val: string | null): string {
 		if (!val) return '';

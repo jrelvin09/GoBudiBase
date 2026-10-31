@@ -226,15 +226,24 @@
 									<div class="py-2 max-w-sm">
 										<SimpleDatePicker
 											label={comp.props?.title || comp.name || 'Pilih Tanggal'}
-											bind:value={comp.props.value}
+											value={comp.props?.value ?? null}
+											onchange={(val) => {
+												if (!comp.props) comp.props = {};
+												comp.props.value = val;
+											}}
 										/>
 									</div>
 								{:else if comp.type === 'date_range_picker'}
 									<div class="py-2 max-w-md">
 										<DateRangePicker
 											label={comp.props?.title || comp.name || 'Rentang Tanggal'}
-											bind:startDate={comp.props.startDate}
-											bind:endDate={comp.props.endDate}
+											startDate={comp.props?.startDate ?? null}
+											endDate={comp.props?.endDate ?? null}
+											onchange={(range) => {
+												if (!comp.props) comp.props = {};
+												comp.props.startDate = range.start;
+												comp.props.endDate = range.end;
+											}}
 										/>
 									</div>
 								<!-- Budibase Smart Blocks -->

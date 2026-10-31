@@ -449,7 +449,10 @@
 					left,
 					top,
 					width,
-					height
+					height,
+					value: compType.includes('date') ? null : undefined,
+					startDate: compType.includes('date_range') ? null : undefined,
+					endDate: compType.includes('date_range') ? null : undefined
 				}
 			});
 			await loadApp();
@@ -1985,6 +1988,30 @@
 							</tr>
 						{/snippet}
 
+						{#snippet propDateValue()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Value', desc: 'Nilai tanggal default kontrol DatePicker (format YYYY-MM-DD).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Value
+								</td>
+								<td class="px-2 py-1">
+									<input
+										type="date"
+										value={(selectedComponent.props?.value as string) || ''}
+										oninput={(e) => {
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.value = e.currentTarget.value;
+											debounceSaveProperty();
+										}}
+										onblur={handleSaveComponentProperty}
+										class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none focus:bg-slate-950 px-1 py-0.5 rounded cursor-pointer"
+									/>
+								</td>
+							</tr>
+						{/snippet}
+
 						{#snippet propRegion()}
 							<tr
 								class="border-b border-slate-800/80 hover:bg-slate-800/40"
@@ -2092,6 +2119,9 @@
 										{#if selectedComponent.type === 'chart_block'}
 											{@render propChartType()}
 										{/if}
+										{#if selectedComponent.type.includes('date')}
+											{@render propDateValue()}
+										{/if}
 									{/if}
 
 									<!-- Category 4: Behavior & Misc -->
@@ -2134,6 +2164,9 @@
 									{/if}
 									{@render propTop()}
 									{@render propType()}
+									{#if selectedComponent.type.includes('date')}
+										{@render propDateValue()}
+									{/if}
 									{#if selectedComponent.type === 'button' || selectedComponent.type === 'kit:button' || selectedComponent.type === 'badge' || selectedComponent.type === 'kit:badge'}
 										{@render propVariant()}
 									{/if}
