@@ -21,6 +21,7 @@
 		Edit3,
 		RefreshCw,
 		AlertCircle,
+		AlertTriangle,
 		Download,
 		CheckCircle2,
 		Sparkles
@@ -215,6 +216,58 @@
 									<FacetedSearch />
 								{:else if comp.type === 'dynamic_actions'}
 									<DynamicActions title={comp.props?.title || comp.name} />
+								{:else if comp.type === 'button' || comp.type === 'kit:button'}
+									<div class="py-2 flex items-center">
+										<button
+											type="button"
+											class="rounded-xl px-6 py-2.5 font-bold text-sm text-white shadow-lg shadow-emerald-600/25 transition active:scale-95 cursor-pointer {comp.props?.variant === 'danger' || comp.props?.variant === 'destructive' ? 'bg-rose-600 hover:bg-rose-500' : comp.props?.variant === 'secondary' ? 'bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200' : comp.props?.variant === 'outline' ? 'border border-emerald-500/50 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-emerald-600 hover:bg-emerald-500'}"
+											onclick={() => alert(`Aksi Tombol "${comp.props?.title || comp.name}" dijalankan!`)}
+										>
+											{comp.props?.title || comp.name || 'Button'}
+										</button>
+									</div>
+								{:else if comp.type === 'badge' || comp.type === 'kit:badge'}
+									<div class="py-2 flex items-center">
+										<span class="rounded-full px-3.5 py-1 text-xs font-bold {comp.props?.variant === 'destructive' || comp.props?.variant === 'danger' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : comp.props?.variant === 'secondary' ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}">
+											{comp.props?.title || comp.name || 'Badge'}
+										</span>
+									</div>
+								{:else if comp.type === 'input' || comp.type === 'kit:input' || comp.type === 'kit:text-item'}
+									<div class="flex flex-col gap-1.5 max-w-md py-2">
+										<label class="text-xs font-semibold text-slate-300">{comp.props?.title || comp.name || 'Input'}</label>
+										<input
+											type="text"
+											placeholder={comp.props?.placeholder || 'Masukkan teks di sini...'}
+											class="rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500"
+										/>
+									</div>
+								{:else if comp.type === 'label' || comp.type === 'kit:label' || comp.type === 'kit:typography'}
+									<div class="py-2">
+										<h4 class="text-sm font-semibold text-slate-200">{comp.props?.title || comp.name || 'Label Text'}</h4>
+									</div>
+								{:else if comp.type === 'checkbox' || comp.type === 'kit:checkbox'}
+									<div class="py-2 flex items-center gap-2.5">
+										<input type="checkbox" id={`chk-${comp.id}`} class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0 cursor-pointer" />
+										<label for={`chk-${comp.id}`} class="text-xs font-medium text-slate-200 cursor-pointer">{comp.props?.title || comp.name}</label>
+									</div>
+								{:else if comp.type === 'switch' || comp.type === 'kit:switch'}
+									<div class="py-2 flex items-center gap-3">
+										<input type="checkbox" role="switch" class="h-5 w-9 rounded-full border-slate-700 bg-slate-900 text-emerald-500 cursor-pointer" />
+										<span class="text-xs font-medium text-slate-200">{comp.props?.title || comp.name}</span>
+									</div>
+								{:else if comp.type === 'card' || comp.type === 'kit:card'}
+									<div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl backdrop-blur">
+										<h3 class="text-sm font-bold text-slate-100 mb-1">{comp.props?.title || comp.name}</h3>
+										<p class="text-xs text-slate-400">Wadah kartu untuk mengelompokkan elemen form.</p>
+									</div>
+								{:else if comp.type === 'alert' || comp.type === 'kit:alert'}
+									<div class="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-xs text-amber-200">
+										<AlertTriangle class="h-5 w-5 text-amber-400 shrink-0" />
+										<div>
+											<strong class="font-bold block text-amber-300">{comp.props?.title || comp.name}</strong>
+											<span class="text-amber-200/80">Informasi atau notifikasi penting pada form ini.</span>
+										</div>
+									</div>
 								{:else if comp.type.startsWith('kit:') || catalog.some(c => c.id === comp.type)}
 									{@const kitId = comp.type.startsWith('kit:') ? comp.type.slice(4) : comp.type}
 									{@const entry = catalog.find((c) => c.id === kitId)}
@@ -352,6 +405,58 @@
 												<p class="font-semibold text-slate-300 mb-1">Ketentuan Keabsahan Tanda Tangan Digital:</p>
 												<p>Goresan tanda tangan digital pada kanvas ini disematkan secara legal ke dalam slip BAST 1-halaman format A4 formal dengan cap watermark tanggal sistem dan checksum verifikasi.</p>
 											</div>
+										</div>
+									</div>
+								{:else if comp.type === 'button' || comp.type === 'kit:button'}
+									<div class="py-2 flex items-center">
+										<button
+											type="button"
+											class="rounded-xl px-6 py-2.5 font-bold text-sm text-white shadow-lg shadow-emerald-600/25 transition active:scale-95 cursor-pointer {comp.props?.variant === 'danger' || comp.props?.variant === 'destructive' ? 'bg-rose-600 hover:bg-rose-500' : comp.props?.variant === 'secondary' ? 'bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200' : comp.props?.variant === 'outline' ? 'border border-emerald-500/50 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-emerald-600 hover:bg-emerald-500'}"
+											onclick={() => alert(`Aksi Tombol "${comp.props?.title || comp.name}" dijalankan!`)}
+										>
+											{comp.props?.title || comp.name || 'Button'}
+										</button>
+									</div>
+								{:else if comp.type === 'badge' || comp.type === 'kit:badge'}
+									<div class="py-2 flex items-center">
+										<span class="rounded-full px-3.5 py-1 text-xs font-bold {comp.props?.variant === 'destructive' || comp.props?.variant === 'danger' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : comp.props?.variant === 'secondary' ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}">
+											{comp.props?.title || comp.name || 'Badge'}
+										</span>
+									</div>
+								{:else if comp.type === 'input' || comp.type === 'kit:input' || comp.type === 'kit:text-item'}
+									<div class="flex flex-col gap-1.5 max-w-md py-2">
+										<label class="text-xs font-semibold text-slate-300">{comp.props?.title || comp.name || 'Input'}</label>
+										<input
+											type="text"
+											placeholder={comp.props?.placeholder || 'Masukkan teks di sini...'}
+											class="rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500"
+										/>
+									</div>
+								{:else if comp.type === 'label' || comp.type === 'kit:label' || comp.type === 'kit:typography'}
+									<div class="py-2">
+										<h4 class="text-sm font-semibold text-slate-200">{comp.props?.title || comp.name || 'Label Text'}</h4>
+									</div>
+								{:else if comp.type === 'checkbox' || comp.type === 'kit:checkbox'}
+									<div class="py-2 flex items-center gap-2.5">
+										<input type="checkbox" id={`chk-${comp.id}`} class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0 cursor-pointer" />
+										<label for={`chk-${comp.id}`} class="text-xs font-medium text-slate-200 cursor-pointer">{comp.props?.title || comp.name}</label>
+									</div>
+								{:else if comp.type === 'switch' || comp.type === 'kit:switch'}
+									<div class="py-2 flex items-center gap-3">
+										<input type="checkbox" role="switch" class="h-5 w-9 rounded-full border-slate-700 bg-slate-900 text-emerald-500 cursor-pointer" />
+										<span class="text-xs font-medium text-slate-200">{comp.props?.title || comp.name}</span>
+									</div>
+								{:else if comp.type === 'card' || comp.type === 'kit:card'}
+									<div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl backdrop-blur">
+										<h3 class="text-sm font-bold text-slate-100 mb-1">{comp.props?.title || comp.name}</h3>
+										<p class="text-xs text-slate-400">Wadah kartu untuk mengelompokkan elemen form.</p>
+									</div>
+								{:else if comp.type === 'alert' || comp.type === 'kit:alert'}
+									<div class="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-xs text-amber-200">
+										<AlertTriangle class="h-5 w-5 text-amber-400 shrink-0" />
+										<div>
+											<strong class="font-bold block text-amber-300">{comp.props?.title || comp.name}</strong>
+											<span class="text-amber-200/80">Informasi atau notifikasi penting pada form ini.</span>
 										</div>
 									</div>
 								{:else if comp.type.startsWith('kit:') || catalog.some(c => c.id === comp.type)}

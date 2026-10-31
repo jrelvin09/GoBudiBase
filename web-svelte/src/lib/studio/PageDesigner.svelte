@@ -58,7 +58,13 @@
 		Sliders,
 		Minus,
 		Maximize2,
-		X
+		X,
+		MousePointerClick,
+		Type,
+		CheckSquare,
+		ToggleLeft,
+		Tag,
+		AlertTriangle
 	} from 'lucide-svelte';
 	import { catalog } from '$lib/kit/catalog';
 	import { catalogTitle } from '$lib/kit/catalog-title';
@@ -133,8 +139,19 @@
 		activePage?.components?.find((c) => c.id === selectedComponentId) || null
 	);
 
-	// 22 APEX Standard Controls
+	// Standard Visual Basic & APEX Controls
 	const standardControls = [
+		// Standard RAD Atoms & Inputs
+		{ type: 'button', name: 'CommandButton', icon: MousePointerClick, group: 'Standard Controls', desc: 'Tombol aksi interaktif dengan caption & handler klik' },
+		{ type: 'input', name: 'TextBox', icon: Type, group: 'Standard Controls', desc: 'Kotak input teks pengguna dengan label & placeholder' },
+		{ type: 'label', name: 'Label', icon: Type, group: 'Standard Controls', desc: 'Teks statis judul atau keterangan form' },
+		{ type: 'badge', name: 'StatusBadge', icon: Tag, group: 'Standard Controls', desc: 'Badge penanda status warna-warni' },
+		{ type: 'checkbox', name: 'CheckBox', icon: CheckSquare, group: 'Standard Controls', desc: 'Kotak centang boolean Ya/Tidak' },
+		{ type: 'switch', name: 'ToggleSwitch', icon: ToggleLeft, group: 'Standard Controls', desc: 'Saklar On/Off interaktif' },
+		{ type: 'card', name: 'Frame / Card', icon: Square, group: 'Standard Controls', desc: 'Wadah panel kartu pengelompok elemen form' },
+		{ type: 'alert', name: 'AlertCallout', icon: AlertTriangle, group: 'Standard Controls', desc: 'Kotak peringatan pesan atau status' },
+
+		// APEX Grids & Reports
 		{ type: 'interactive_grid', name: 'Interactive Grid', icon: TableProperties, group: 'Grids', desc: 'Tabel data 100k, sort, filter, inline edit, Excel paste' },
 		{ type: 'interactive_report', name: 'Interactive Report (IR)', icon: FileSpreadsheet, group: 'Grids', desc: 'Laporan 18 operator filter, aggregasi, export CSV/PDF' },
 		{ type: 'pivot_matrix', name: 'Pivot Matrix', icon: Grid3X3, group: 'Grids', desc: '2D Cross-tab aggregation dengan heatmap' },
@@ -763,6 +780,48 @@
 													<span>[Lookup Dialog Foreign Key]</span>
 													<span class="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] text-cyan-400 font-bold">🔍 Cari</span>
 												</div>
+											{:else if comp.type === 'button' || comp.type === 'kit:button'}
+												<div class="flex items-center py-1">
+													<button
+														type="button"
+														class="rounded-lg px-4 py-1.5 text-xs font-bold text-white shadow transition cursor-default {comp.props?.variant === 'danger' || comp.props?.variant === 'destructive' ? 'bg-rose-600' : comp.props?.variant === 'secondary' ? 'bg-slate-800 border border-slate-700 text-slate-200' : comp.props?.variant === 'outline' ? 'border border-emerald-500/50 bg-emerald-500/10 text-emerald-400' : 'bg-emerald-600'}"
+													>
+														{comp.props?.title || comp.name || 'Button'}
+													</button>
+												</div>
+											{:else if comp.type === 'badge' || comp.type === 'kit:badge'}
+												<div class="flex items-center py-1">
+													<span class="rounded-full px-3 py-0.5 text-xs font-bold {comp.props?.variant === 'destructive' || comp.props?.variant === 'danger' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : comp.props?.variant === 'secondary' ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}">
+														{comp.props?.title || comp.name || 'Badge'}
+													</span>
+												</div>
+											{:else if comp.type === 'input' || comp.type === 'kit:input' || comp.type === 'kit:text-item'}
+												<div class="flex flex-col gap-1 max-w-sm py-1">
+													<span class="text-[11px] font-semibold text-slate-300">{comp.props?.title || comp.name}</span>
+													<div class="h-7 rounded bg-slate-950 border border-slate-800 px-2.5 flex items-center text-xs text-slate-400 font-mono">
+														{comp.props?.placeholder || 'Ketik nilai...'}
+													</div>
+												</div>
+											{:else if comp.type === 'label' || comp.type === 'kit:label' || comp.type === 'kit:typography'}
+												<div class="py-1">
+													<span class="text-xs font-semibold text-slate-200">{comp.props?.title || comp.name}</span>
+												</div>
+											{:else if comp.type === 'checkbox' || comp.type === 'kit:checkbox'}
+												<div class="flex items-center gap-2 py-1 text-xs text-slate-200">
+													<div class="h-4 w-4 rounded border border-slate-700 bg-slate-950 flex items-center justify-center text-emerald-400 font-bold text-[10px]">✓</div>
+													<span>{comp.props?.title || comp.name}</span>
+												</div>
+											{:else if comp.type === 'switch' || comp.type === 'kit:switch'}
+												<div class="flex items-center gap-2 py-1 text-xs text-slate-200">
+													<div class="h-4 w-7 rounded-full bg-emerald-600 p-0.5 flex justify-end">
+														<div class="h-3 w-3 rounded-full bg-white"></div>
+													</div>
+													<span>{comp.props?.title || comp.name}</span>
+												</div>
+											{:else if comp.type === 'alert' || comp.type === 'kit:alert'}
+												<div class="flex items-center gap-2 rounded bg-amber-950/20 border border-amber-500/30 p-2 text-xs text-amber-200">
+													<span class="font-bold">⚠️ {comp.props?.title || comp.name}</span>
+												</div>
 											{:else if comp.type.startsWith('kit:')}
 												<div class="flex items-center justify-between text-xs">
 													<span class="font-semibold text-indigo-300">{comp.name}</span>
@@ -786,6 +845,13 @@
 										<span>Tarik kontrol ke sini untuk menambah</span>
 									</div>
 									<div class="flex items-center gap-1">
+										<button
+											type="button"
+											onclick={() => handleAddComponent('button', 'Tombol Aksi')}
+											class="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-emerald-300 hover:bg-emerald-600 hover:text-white transition font-semibold"
+										>
+											+ Button
+										</button>
 										<button
 											type="button"
 											onclick={() => handleAddComponent('interactive_grid', 'Grid Baru')}
@@ -985,6 +1051,62 @@
 										/>
 									</td>
 								</tr>
+
+								<!-- Variant / Style Property for Buttons, Badges, etc. -->
+								{#if selectedComponent.type === 'button' || selectedComponent.type === 'kit:button' || selectedComponent.type === 'badge' || selectedComponent.type === 'kit:badge'}
+									<!-- svelte-ignore a11y_click_events_have_key_events -->
+									<!-- svelte-ignore a11y_no_static_element_interactions -->
+									<tr
+										class="border-b border-slate-800/80 hover:bg-slate-800/40"
+										onclick={() => (activePropertyHelp = { title: 'Variant', desc: 'Gaya tampilan visual kontrol: default (Primary Emerald), secondary (Slate), destructive (Rose), outline.' })}
+									>
+										<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+											Variant
+										</td>
+										<td class="px-2 py-1">
+											<select
+												value={(selectedComponent.props?.variant as string) || 'default'}
+												onchange={(e) => {
+													if (!selectedComponent.props) selectedComponent.props = {};
+													selectedComponent.props.variant = e.currentTarget.value;
+													handleSaveComponentProperty();
+												}}
+												class="w-full bg-slate-950 text-emerald-400 outline-none cursor-pointer border border-slate-800 rounded px-1 py-0.5"
+											>
+												<option value="default">default (Primary Emerald)</option>
+												<option value="secondary">secondary (Slate)</option>
+												<option value="destructive">destructive (Rose/Danger)</option>
+												<option value="outline">outline (Border)</option>
+											</select>
+										</td>
+									</tr>
+								{/if}
+
+								<!-- Placeholder Property for Inputs -->
+								{#if selectedComponent.type === 'input' || selectedComponent.type === 'kit:input' || selectedComponent.type === 'kit:text-item'}
+									<!-- svelte-ignore a11y_click_events_have_key_events -->
+									<!-- svelte-ignore a11y_no_static_element_interactions -->
+									<tr
+										class="border-b border-slate-800/80 hover:bg-slate-800/40"
+										onclick={() => (activePropertyHelp = { title: 'Placeholder', desc: 'Teks panduan abu-abu di dalam kotak input sebelum pengguna mengetik.' })}
+									>
+										<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+											Placeholder
+										</td>
+										<td class="px-2 py-1">
+											<input
+												type="text"
+												value={(selectedComponent.props?.placeholder as string) || ''}
+												oninput={(e) => {
+													if (!selectedComponent.props) selectedComponent.props = {};
+													selectedComponent.props.placeholder = e.currentTarget.value;
+												}}
+												onblur={handleSaveComponentProperty}
+												class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
+											/>
+										</td>
+									</tr>
+								{/if}
 
 								<!-- Type (Read-Only) -->
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
