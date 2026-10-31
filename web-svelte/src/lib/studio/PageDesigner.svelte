@@ -167,6 +167,8 @@
 		{ type: 'switch', name: 'ToggleSwitch', icon: ToggleLeft, group: 'Standard Controls', desc: 'Saklar On/Off interaktif' },
 		{ type: 'card', name: 'Frame / Card', icon: Square, group: 'Standard Controls', desc: 'Wadah panel kartu pengelompok elemen form' },
 		{ type: 'alert', name: 'AlertCallout', icon: AlertTriangle, group: 'Standard Controls', desc: 'Kotak peringatan pesan atau status' },
+		{ type: 'date_picker', name: 'DatePicker', icon: Calendar, group: 'Standard Controls', desc: 'Pemilih tanggal tunggal sederhana (Single Date Input)' },
+		{ type: 'date_range_picker', name: 'Date Range Picker', icon: Calendar, group: 'Standard Controls', desc: 'Pemilih rentang tanggal (Dari & Sampai Tanggal)' },
 
 		// APEX Grids & Reports
 		{ type: 'interactive_grid', name: 'Interactive Grid', icon: TableProperties, group: 'Grids', desc: 'Tabel data 100k, sort, filter, inline edit, Excel paste' },
@@ -242,11 +244,15 @@
 			comp.type.includes('grid') || comp.type.includes('table') ? 660 :
 			comp.type.includes('kanban') ? 660 :
 			comp.type.includes('chart') ? 500 :
+			comp.type.includes('date_range') || comp.type.includes('date-picker-item') ? 420 :
+			comp.type.includes('date') ? 260 :
 			comp.type.includes('input') || comp.type.includes('text-item') ? 320 : 360
 		);
 		const height = typeof comp.props?.height === 'number' ? comp.props.height : (
 			comp.type.includes('button') || comp.type.includes('badge') ? 52 :
 			comp.type.includes('input') || comp.type.includes('text-item') ? 72 :
+			comp.type.includes('date_range') || comp.type.includes('date-picker-item') ? 130 :
+			comp.type.includes('date') ? 70 :
 			comp.type.includes('grid') || comp.type.includes('table') ? 240 :
 			comp.type.includes('kanban') ? 220 :
 			comp.type.includes('chart') ? 220 : 84
@@ -1271,6 +1277,31 @@
 											{:else if comp.type === 'alert' || comp.type === 'kit:alert'}
 												<div class="flex items-center gap-2 rounded bg-amber-950/20 border border-amber-500/30 p-2 text-xs text-amber-200">
 													<span class="font-bold">âš ï¸ {comp.props?.title || comp.name}</span>
+												</div>
+											{:else if comp.type === 'date_picker' || comp.type === 'datepicker' || comp.type === 'kit:date-picker' || comp.type === 'kit:simple-date-picker'}
+												<div class="flex flex-col gap-1 py-1">
+													<span class="text-[11px] font-semibold text-slate-300">{comp.props?.title || comp.name || 'Pilih Tanggal'}</span>
+													<div class="h-8 rounded-lg bg-slate-950 border border-slate-800 px-3 flex items-center justify-between text-xs text-slate-300 font-mono">
+														<span>{comp.props?.value || '2026-10-31'}</span>
+														<Calendar class="h-3.5 w-3.5 text-emerald-400" />
+													</div>
+												</div>
+											{:else if comp.type === 'date_range_picker'}
+												<div class="flex flex-col gap-1 py-1">
+													<div class="flex items-center justify-between text-[11px]">
+														<span class="font-semibold text-slate-300">{comp.props?.title || comp.name || 'Rentang Tanggal'}</span>
+														<span class="font-mono text-[9px] text-emerald-400">Date Range</span>
+													</div>
+													<div class="grid grid-cols-2 gap-1.5">
+														<div class="h-7 rounded bg-slate-950 border border-slate-800 px-2 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+															<span>Dari: 01 Okt</span>
+															<Calendar class="h-3 w-3 text-emerald-400" />
+														</div>
+														<div class="h-7 rounded bg-slate-950 border border-slate-800 px-2 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+															<span>S/d: 31 Okt</span>
+															<Calendar class="h-3 w-3 text-emerald-400" />
+														</div>
+													</div>
 												</div>
 										{:else if comp.type === 'data_provider'}
 											<div class="rounded border border-purple-800/50 bg-purple-950/20 p-2 text-xs text-purple-300 flex items-center justify-between">

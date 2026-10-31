@@ -20,6 +20,8 @@
 	import CardsRepeater from '$lib/blocks/CardsRepeater.svelte';
 	import ChartBlock from '$lib/blocks/ChartBlock.svelte';
 	import ContainerSection from '$lib/blocks/ContainerSection.svelte';
+	import SimpleDatePicker from '$lib/kit/molecules/SimpleDatePicker.svelte';
+	import DateRangePicker from '$lib/kit/molecules/DateRangePicker.svelte';
 	import { runActionChain, type ActionStep } from '$lib/runtime/actionRunner';
 	import { catalog } from '$lib/kit/catalog';
 	import { exportBastPdf } from '$lib/utils/pdfExport';
@@ -190,6 +192,21 @@
 											<strong class="font-bold block text-amber-300">{comp.props?.title || comp.name}</strong>
 											<span class="text-amber-200/80">Informasi atau notifikasi penting pada form ini.</span>
 										</div>
+									</div>
+								{:else if comp.type === 'date_picker' || comp.type === 'datepicker' || comp.type === 'kit:date-picker' || comp.type === 'kit:simple-date-picker'}
+									<div class="py-2 max-w-sm">
+										<SimpleDatePicker
+											label={comp.props?.title || comp.name || 'Pilih Tanggal'}
+											bind:value={comp.props.value}
+										/>
+									</div>
+								{:else if comp.type === 'date_range_picker'}
+									<div class="py-2 max-w-md">
+										<DateRangePicker
+											label={comp.props?.title || comp.name || 'Rentang Tanggal'}
+											bind:startDate={comp.props.startDate}
+											bind:endDate={comp.props.endDate}
+										/>
 									</div>
 								<!-- Budibase Smart Blocks -->
 								{:else if comp.type === 'data_provider'}

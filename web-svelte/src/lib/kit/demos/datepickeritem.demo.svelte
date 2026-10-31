@@ -1,20 +1,21 @@
 <script lang="ts">
-	import DatePickerItem from '$lib/kit/molecules/DatePickerItem.svelte';
+	import DateRangePicker from '$lib/kit/molecules/DateRangePicker.svelte';
 
-	let plain = $state<string | null>('2026-09-26');
-	let bounded = $state<string | null>(null);
-	let readOnly = $state<string | null>('2026-01-01');
+	let start = $state<string | null>('2026-10-01');
+	let end = $state<string | null>('2026-10-31');
 </script>
 
-<div class="grid max-w-xl gap-4">
-	<DatePickerItem id="date-plain" label="Date" bind:value={plain} />
-	<DatePickerItem
-		id="date-bounded"
-		label="Between 2026-01-01 and 2026-12-31"
-		required
-		min="2026-01-01"
-		max="2026-12-31"
-		bind:value={bounded}
+<div class="flex flex-col gap-4 max-w-lg">
+	<DateRangePicker
+		label="Rentang Tanggal Pelaporan"
+		bind:startDate={start}
+		bind:endDate={end}
 	/>
-	<DatePickerItem id="date-readonly" label="Read only" readOnly bind:value={readOnly} />
+
+	{#if start && end}
+		<div class="rounded-lg bg-slate-950 border border-slate-800 p-3 text-xs text-slate-300 font-mono flex items-center justify-between">
+			<span class="text-slate-500">Rentang Terpilih:</span>
+			<span class="text-emerald-400 font-bold">{start} &nbsp;s/d&nbsp; {end}</span>
+		</div>
+	{/if}
 </div>
