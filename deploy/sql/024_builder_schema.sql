@@ -291,5 +291,48 @@ BEGIN
             '{}'::jsonb,
             '{"title":"Berita Acara Serah Terima Aset Digital"}'::jsonb
         );
+
+        -- Page 6: Kanban Workflow Status (Barebone-SQL Organism)
+        INSERT INTO builder.pages (app_id, slug, title, icon, layout, order_num, is_home)
+        VALUES (v_app_id, 'kanban', 'Status Kanban Workflow', 'Layers', 'single', 6, false)
+        RETURNING id INTO v_p_bast;
+
+        INSERT INTO builder.components (page_id, name, type, region, order_num, datasource_type, datasource_config, props)
+        VALUES (
+            v_p_bast,
+            'Workflow Status Pemeliharaan',
+            'kanban_board',
+            'main',
+            1,
+            'table',
+            '{"table":"app.bmn_items"}'::jsonb,
+            '{"title":"Kanban Board Pemeliharaan Aset"}'::jsonb
+        );
+
+        -- Page 7: Shuttle & Popup LOV (Barebone-SQL Molecules)
+        INSERT INTO builder.pages (app_id, slug, title, icon, layout, order_num, is_home)
+        VALUES (v_app_id, 'allocation', 'Shuttle & Popup LOV', 'ArrowLeftRight', 'split-2', 7, false)
+        RETURNING id INTO v_p_bast;
+
+        INSERT INTO builder.components (page_id, name, type, region, order_num, datasource_type, datasource_config, props)
+        VALUES (
+            v_p_bast,
+            'Alokasi Shuttle Dual-Listbox',
+            'shuttle_selector',
+            'main',
+            1,
+            'table',
+            '{"table":"app.bmn_items"}'::jsonb,
+            '{"title":"Shuttle Selector"}'::jsonb
+        ), (
+            v_p_bast,
+            'Pencarian Popup LOV',
+            'popup_lov',
+            'secondary',
+            2,
+            'table',
+            '{"table":"app.bmn_items"}'::jsonb,
+            '{"title":"Popup LOV Dialog"}'::jsonb
+        );
     END IF;
 END $$;

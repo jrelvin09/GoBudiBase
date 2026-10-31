@@ -88,7 +88,11 @@ func main() {
 			r.Get("/schema/columns", handlers.HandleGetTableColumns(pool))
 			r.Post("/schema/columns", handlers.HandleGetTableColumns(pool))
 			r.Post("/query/execute", handlers.HandleExecuteBuilderQuery(pool))
+			r.Post("/batch", handlers.HandleBatchOperations(pool))
 		})
+
+		// Generic Resource REST for Interactive Grid & Reports
+		r.Post("/r/{res}/_batch", handlers.HandleBatchOperations(pool))
 	})
 
 	server := &http.Server{

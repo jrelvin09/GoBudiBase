@@ -10,6 +10,9 @@
 	import FacetedSearch from '$lib/apex/FacetedSearch.svelte';
 	import SignaturePad from '$lib/apex/SignaturePad.svelte';
 	import CurrencyInput from '$lib/apex/CurrencyInput.svelte';
+	import KanbanBoard from '$lib/apex/KanbanBoard.svelte';
+	import ShuttleSelector from '$lib/apex/ShuttleSelector.svelte';
+	import PopupLovDemo from '$lib/apex/PopupLovDemo.svelte';
 	import { exportBastPdf } from '$lib/utils/pdfExport';
 	import {
 		Layers,
@@ -184,6 +187,12 @@
 							<div class="w-full">
 								{#if comp.type === 'interactive_grid'}
 									<InteractiveGrid />
+								{:else if comp.type === 'kanban_board' || comp.type === 'kanban'}
+									<KanbanBoard />
+								{:else if comp.type === 'shuttle_selector' || comp.type === 'shuttle'}
+									<ShuttleSelector />
+								{:else if comp.type === 'popup_lov'}
+									<PopupLovDemo />
 								{:else if comp.type === 'pivot_matrix'}
 									<PivotMatrix />
 								{:else if comp.type === 'calendar_timeline'}
@@ -207,6 +216,12 @@
 							<div class="w-full">
 								{#if comp.type === 'interactive_grid'}
 									<InteractiveGrid />
+								{:else if comp.type === 'kanban_board' || comp.type === 'kanban'}
+									<KanbanBoard />
+								{:else if comp.type === 'shuttle_selector' || comp.type === 'shuttle'}
+									<ShuttleSelector />
+								{:else if comp.type === 'popup_lov'}
+									<PopupLovDemo />
 								{:else if comp.type === 'pivot_matrix'}
 									<PivotMatrix />
 								{:else if comp.type === 'calendar_timeline'}

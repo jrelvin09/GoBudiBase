@@ -34,7 +34,7 @@ Remove-Item Env:\GOOS, Env:\GOARCH
 Write-Host "`n[3/5] Deploying Go Daemon ke Server $serverIP..." -ForegroundColor Yellow
 tar -czf "$root\bin\gobudibase.tar.gz" -C "$root\bin" gobudibase
 scp -i $sshKey -o StrictHostKeyChecking=no "$root\bin\gobudibase.tar.gz" "mukti@${serverIP}:/tmp/gobudibase.tar.gz"
-ssh -i $sshKey -o StrictHostKeyChecking=no "mukti@${serverIP}" "sudo systemctl stop gobudibase && sudo tar -xzf /tmp/gobudibase.tar.gz -C /usr/local/bin/ && sudo chmod +x /usr/local/bin/gobudibase && sudo systemctl start gobudibase"
+ssh -i $sshKey -o StrictHostKeyChecking=no "mukti@${serverIP}" "sudo tar -xzf /tmp/gobudibase.tar.gz -C /usr/local/bin/ && sudo chmod +x /usr/local/bin/gobudibase && sudo systemctl restart gobudibase"
 
 # 4. DEPLOY FRONTEND SPA KE /var/www/gobudibase/ DI SERVER
 Write-Host "`n[4/5] Deploying Static SPA ke /var/www/gobudibase/ di Server $serverIP..." -ForegroundColor Yellow

@@ -35,7 +35,20 @@
 		RefreshCw,
 		Play,
 		Layout,
-		Box
+		Box,
+		ArrowLeftRight,
+		Search,
+		FileSpreadsheet,
+		LayoutGrid,
+		Gauge,
+		ChartBar,
+		ChartLine,
+		ChartPie,
+		History,
+		Zap,
+		Clock,
+		DollarSign,
+		SquareCheck
 	} from 'lucide-svelte';
 
 	let {
@@ -93,15 +106,48 @@
 		activePage?.components?.find((c) => c.id === selectedComponentId) || null
 	);
 
+	type PaletteCategory = 'all' | 'reports' | 'visuals' | 'specialized' | 'forms' | 'containers';
+	let selectedCategory = $state<PaletteCategory>('all');
+
 	const componentPalette = [
-		{ type: 'interactive_grid', name: 'Interactive Grid', icon: TableProperties, desc: 'Tabel data 100k, sort, filter, inline edit, Excel/PDF' },
-		{ type: 'pivot_matrix', name: 'Pivot Matrix', icon: Grid3X3, desc: '2D Cross-tab dynamic aggregation dengan heatmap shading' },
-		{ type: 'calendar_timeline', name: 'SLA Calendar & Timeline', icon: Calendar, desc: 'Kalender pemeliharaan & Gantt SLA duration' },
-		{ type: 'asset_map', name: 'GIS Campus Map', icon: MapPin, desc: 'Peta spasial SVG interaktif dengan pin gedung & valuasi' },
-		{ type: 'tree_view', name: 'Spatial Tree View', icon: FolderTree, desc: 'Navigasi hierarki lokasi bertingkat (Kampus/Gedung/Lantai)' },
-		{ type: 'faceted_search', name: 'Faceted Search', icon: Filter, desc: 'Filter multi-dimensi dengan dynamic counter real-time' },
-		{ type: 'signature_bast', name: 'Digital Sign & BAST', icon: FileSignature, desc: 'Kanvas tanda tangan digital touch/mouse & ekspor slip PDF' }
+		// 1. Reports & Data Grids
+		{ category: 'reports', type: 'interactive_grid', name: 'Interactive Grid', icon: TableProperties, desc: 'Tabel data 100k, sort, filter, inline edit, Excel paste, batch save' },
+		{ category: 'reports', type: 'interactive_report', name: 'Interactive Report (IR)', icon: FileSpreadsheet, desc: 'Laporan 18 operator filter, aggregasi, compute, highlight, CSV/PDF' },
+		{ category: 'reports', type: 'pivot_matrix', name: 'Pivot Matrix', icon: Grid3X3, desc: '2D Cross-tab dynamic aggregation dengan heatmap shading' },
+		{ category: 'reports', type: 'cards_grid', name: 'Cards Grid View', icon: LayoutGrid, desc: 'Tampilan kartu multi-kolom untuk katalog visual aset' },
+
+		// 2. Visualizations & KPI
+		{ category: 'visuals', type: 'kpi_cards', name: 'KPI Metric Cards', icon: Gauge, desc: 'Statistik metrik ringkasan eksekutif dengan delta trend' },
+		{ category: 'visuals', type: 'bar_chart', name: 'Bar Chart (Pure SVG)', icon: ChartBar, desc: 'Grafik batang perbandingan kategori zero-dependency' },
+		{ category: 'visuals', type: 'line_chart', name: 'Line Trend Chart', icon: ChartLine, desc: 'Grafik garis tren waktu & pergerakan nilai aset' },
+		{ category: 'visuals', type: 'pie_chart', name: 'Pie / Donut Chart', icon: ChartPie, desc: 'Diagram proporsi komposisi aset & anggaran' },
+
+		// 3. Specialized APEX Views
+		{ category: 'specialized', type: 'kanban_board', name: 'Kanban Workflow Board', icon: Layers, desc: 'Papan kartu status alur kerja BMN & pemeliharaan aset' },
+		{ category: 'specialized', type: 'calendar_timeline', name: 'SLA Calendar & Timeline', icon: Calendar, desc: 'Kalender pemeliharaan & Gantt SLA duration' },
+		{ category: 'specialized', type: 'asset_map', name: 'GIS Campus Map', icon: MapPin, desc: 'Peta spasial SVG interaktif dengan pin gedung & valuasi' },
+		{ category: 'specialized', type: 'tree_view', name: 'Spatial Tree View', icon: FolderTree, desc: 'Navigasi hierarki lokasi bertingkat (Kampus/Gedung/Lantai)' },
+		{ category: 'specialized', type: 'faceted_search', name: 'Faceted Search', icon: Filter, desc: 'Filter multi-dimensi dengan dynamic counter real-time' },
+		{ category: 'specialized', type: 'history_timeline', name: 'Audit History Timeline', icon: History, desc: 'Jejak audit riwayat modifikasi data record historis' },
+
+		// 4. Form Controls (Oracle APEX Molecules)
+		{ category: 'forms', type: 'popup_lov', name: 'Popup LOV (List of Values)', icon: Search, desc: 'Modal dialog lookup foreign key dengan pencarian live' },
+		{ category: 'forms', type: 'shuttle_selector', name: 'Shuttle Dual Listbox', icon: ArrowLeftRight, desc: 'Selector APEX dua kolom untuk alokasi aset massal' },
+		{ category: 'forms', type: 'signature_bast', name: 'Digital Sign & BAST', icon: FileSignature, desc: 'Kanvas tanda tangan digital touch/mouse & ekspor slip PDF' },
+		{ category: 'forms', type: 'dynamic_actions', name: 'Dynamic Actions Rule', icon: Zap, desc: 'Rule engine event-driven (Set Value, Show/Hide, Disable)' },
+		{ category: 'forms', type: 'date_picker', name: 'Date & Time Picker', icon: Clock, desc: 'Input tanggal & jam dengan kalender popup' },
+		{ category: 'forms', type: 'currency_input', name: 'Currency IDR Input', icon: DollarSign, desc: 'Input nominal angka otomatis separator Rupiah' },
+
+		// 5. Layout Containers
+		{ category: 'containers', type: 'tabs_container', name: 'Tabs Container', icon: Layout, desc: 'Wadah navigasi multi-tab untuk memecah form panjang' },
+		{ category: 'containers', type: 'wizard_progress', name: 'Wizard Step Progress', icon: SquareCheck, desc: 'Indikator langkah bertahap untuk proses bisnis sekuensial' }
 	];
+
+	const filteredPalette = $derived(
+		selectedCategory === 'all'
+			? componentPalette
+			: componentPalette.filter((c) => c.category === selectedCategory)
+	);
 
 	async function handleAddComponent(compType: string, customName?: string, datasourceConfig?: Record<string, unknown>) {
 		if (!activePage) return;
@@ -322,23 +368,72 @@
 						{/if}
 					</div>
 				{:else if leftTab === 'palette'}
-					<!-- Palette Components List -->
-					<div class="flex flex-col gap-2">
-						<span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Komponen APEX Parity</span>
-						<div class="flex flex-col gap-2">
-							{#each componentPalette as item}
+					<!-- Palette Components List with Category Pills -->
+					<div class="flex flex-col gap-2.5">
+						<div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500">
+							<span>Katalog APEX ({filteredPalette.length})</span>
+						</div>
+
+						<!-- Category Filter Pills -->
+						<div class="flex flex-wrap gap-1 border-b border-slate-800 pb-2 text-[10px] font-semibold">
+							<button
+								type="button"
+								onclick={() => (selectedCategory = 'all')}
+								class="rounded px-2 py-0.5 transition {selectedCategory === 'all' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}"
+							>
+								Semua ({componentPalette.length})
+							</button>
+							<button
+								type="button"
+								onclick={() => (selectedCategory = 'reports')}
+								class="rounded px-2 py-0.5 transition {selectedCategory === 'reports' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}"
+							>
+								Grids
+							</button>
+							<button
+								type="button"
+								onclick={() => (selectedCategory = 'visuals')}
+								class="rounded px-2 py-0.5 transition {selectedCategory === 'visuals' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}"
+							>
+								Visuals
+							</button>
+							<button
+								type="button"
+								onclick={() => (selectedCategory = 'specialized')}
+								class="rounded px-2 py-0.5 transition {selectedCategory === 'specialized' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}"
+							>
+								Specialized
+							</button>
+							<button
+								type="button"
+								onclick={() => (selectedCategory = 'forms')}
+								class="rounded px-2 py-0.5 transition {selectedCategory === 'forms' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}"
+							>
+								Forms
+							</button>
+							<button
+								type="button"
+								onclick={() => (selectedCategory = 'containers')}
+								class="rounded px-2 py-0.5 transition {selectedCategory === 'containers' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}"
+							>
+								Containers
+							</button>
+						</div>
+
+						<div class="flex flex-col gap-1.5 overflow-y-auto max-h-[520px] pr-1">
+							{#each filteredPalette as item}
 								{@const Icon = item.icon}
 								<button
 									type="button"
 									onclick={() => handleAddComponent(item.type, item.name)}
-									class="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-950/50 p-2.5 text-left transition hover:border-emerald-500/50 hover:bg-emerald-950/20 group"
+									class="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-950/50 p-2 text-left transition hover:border-emerald-500/50 hover:bg-emerald-950/20 group"
 								>
-									<div class="rounded bg-slate-800 p-1.5 text-slate-400 group-hover:text-emerald-400 transition">
+									<div class="rounded bg-slate-800 p-1.5 text-slate-400 group-hover:text-emerald-400 transition shrink-0">
 										<Icon class="h-4 w-4" />
 									</div>
-									<div>
-										<h4 class="text-xs font-bold text-slate-200 group-hover:text-emerald-300">{item.name}</h4>
-										<p class="text-[10px] text-slate-500 leading-tight mt-0.5">{item.desc}</p>
+									<div class="min-w-0">
+										<h4 class="text-xs font-bold text-slate-200 group-hover:text-emerald-300 truncate">{item.name}</h4>
+										<p class="text-[10px] text-slate-500 leading-tight mt-0.5 line-clamp-2">{item.desc}</p>
 									</div>
 								</button>
 							{/each}

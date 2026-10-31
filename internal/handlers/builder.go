@@ -452,3 +452,145 @@ func HandleExecuteBuilderQuery(pool *pgxpool.Pool) http.HandlerFunc {
 		})
 	}
 }
+
+// ============================================================================
+// 7. ATOMIC BATCH WRITE ENGINE (Interactive Grid / APEX Batch Operations)
+// ============================================================================
+
+type BatchOperation struct {
+	Op              string                 `json:"op"`
+	TmpID           string                 `json:"tmp_id,omitempty"`
+	ID              any                    `json:"id,omitempty"`
+	ExpectedVersion int64                  `json:"expected_version,omitempty"`
+	Values          map[string]interface{} `json:"values,omitempty"`
+}
+
+type BatchRequest struct {
+	Table string           `json:"table"`
+	Ops   []BatchOperation `json:"ops"`
+}
+
+type BatchOpResult struct {
+	Index  int                    `json:"index"`
+	TmpID  string                 `json:"tmp_id,omitempty"`
+	ID     any                    `json:"id,omitempty"`
+	Record map[string]interface{} `json:"record,omitempty"`
+}
+
+func HandleBatchOperations(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req BatchRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"Invalid request payload: %s"}`, err.Error()), http.StatusBadRequest)
+			return
+		}
+
+		table := strings.TrimSpace(req.Table)
+		if table == "" {
+			table = "app.bmn_items"
+		}
+		for _, ch := range table {
+			if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '.') {
+				http.Error(w, `{"error":"Invalid table identifier"}`, http.StatusBadRequest)
+				return
+			}
+		}
+
+		ctx := r.Context()
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"Transaction begin failed: %s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback(ctx)
+
+		results := make([]BatchOpResult, 0, len(req.Ops))
+		for idx, op := range req.Ops {
+			switch strings.ToLower(op.Op) {
+			case "create":
+				cols := make([]string, 0, len(op.Values))
+				placeholders := make([]string, 0, len(op.Values))
+				args := make([]interface{}, 0, len(op.Values))
+				argNum := 1
+				for k, v := range op.Values {
+					cols = append(cols, k)
+					placeholders = append(placeholders, fmt.Sprintf("$%d", argNum))
+					args = append(args, v)
+					argNum++
+				}
+				if len(cols) == 0 {
+					continue
+				}
+				insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id", table, strings.Join(cols, ", "), strings.Join(placeholders, ", "))
+				var newID any
+				if err := tx.QueryRow(ctx, insertSQL, args...).Scan(&newID); err != nil {
+					http.Error(w, fmt.Sprintf(`{"error":"Create failed at index %d: %s"}`, idx, err.Error()), http.StatusUnprocessableEntity)
+					return
+				}
+				results = append(results, BatchOpResult{
+					Index:  idx,
+					TmpID:  op.TmpID,
+					ID:     newID,
+					Record: op.Values,
+				})
+
+			case "update":
+				if op.ID == nil {
+					http.Error(w, fmt.Sprintf(`{"error":"Update requires id at index %d"}`, idx), http.StatusUnprocessableEntity)
+					return
+				}
+				setClauses := make([]string, 0, len(op.Values))
+				args := make([]interface{}, 0, len(op.Values)+1)
+				argNum := 1
+				for k, v := range op.Values {
+					if k == "id" {
+						continue
+					}
+					setClauses = append(setClauses, fmt.Sprintf("%s = $%d", k, argNum))
+					args = append(args, v)
+					argNum++
+				}
+				if len(setClauses) == 0 {
+					continue
+				}
+				args = append(args, op.ID)
+				updateSQL := fmt.Sprintf("UPDATE %s SET %s WHERE id = $%d", table, strings.Join(setClauses, ", "), argNum)
+				if _, err := tx.Exec(ctx, updateSQL, args...); err != nil {
+					http.Error(w, fmt.Sprintf(`{"error":"Update failed at index %d: %s"}`, idx, err.Error()), http.StatusUnprocessableEntity)
+					return
+				}
+				results = append(results, BatchOpResult{
+					Index:  idx,
+					ID:     op.ID,
+					Record: op.Values,
+				})
+
+			case "delete":
+				if op.ID == nil {
+					http.Error(w, fmt.Sprintf(`{"error":"Delete requires id at index %d"}`, idx), http.StatusUnprocessableEntity)
+					return
+				}
+				deleteSQL := fmt.Sprintf("DELETE FROM %s WHERE id = $1", table)
+				if _, err := tx.Exec(ctx, deleteSQL, op.ID); err != nil {
+					http.Error(w, fmt.Sprintf(`{"error":"Delete failed at index %d: %s"}`, idx, err.Error()), http.StatusUnprocessableEntity)
+					return
+				}
+				results = append(results, BatchOpResult{
+					Index: idx,
+					ID:    op.ID,
+				})
+			}
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"Commit failed: %s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "ok",
+			"results": results,
+		})
+	}
+}
