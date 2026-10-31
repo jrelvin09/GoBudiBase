@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import {
 		fetchRuntimeApp,
@@ -313,6 +313,41 @@
 		onRun?.(activePage?.slug);
 	}
 
+	let propertySaveTimer: any = null;
+	function debounceSaveProperty() {
+		if (propertySaveTimer) clearTimeout(propertySaveTimer);
+		propertySaveTimer = setTimeout(() => {
+			if (selectedComponent) {
+				handleSaveComponentProperty();
+			}
+		}, 400);
+	}
+
+	async function handleDeletePage(pageId: number, pageTitle?: string) {
+		if (!runtimeApp) return;
+		if (runtimeApp.pages.length <= 1) {
+			alert('Tidak dapat menghapus form! Aplikasi harus memiliki minimal 1 form aktif.');
+			return;
+		}
+		const title = pageTitle || 'Form';
+		const confirmed = confirm(`Hapus form "${title}"?\nSemua komponen di dalam form ini akan terhapus secara permanen.`);
+		if (!confirmed) return;
+
+		try {
+			await deletePage(pageId);
+			const deletedIdx = runtimeApp.pages.findIndex((p) => p.id === pageId);
+			await loadApp();
+			if (deletedIdx >= 0) {
+				activePageIndex = Math.max(0, Math.min(deletedIdx, runtimeApp.pages.length - 1));
+			} else {
+				activePageIndex = 0;
+			}
+			selectedComponentId = null;
+		} catch (e: any) {
+			alert('Gagal menghapus form: ' + (e.message || e));
+		}
+	}
+
 	async function handleAddPage() {
 		if (!runtimeApp || !newPageTitle || !newPageSlug) return;
 		try {
@@ -523,6 +558,16 @@
 							</option>
 						{/each}
 					</select>
+					<button
+						type="button"
+						onclick={() => activePage && handleDeletePage(activePage.id, activePage.title)}
+						disabled={!runtimeApp || runtimeApp.pages.length <= 1}
+						class="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-slate-400 hover:bg-rose-900/50 hover:text-rose-200 transition text-[11px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+						title={runtimeApp && runtimeApp.pages.length <= 1 ? "Minimal 1 form harus tetap ada" : "Hapus Form Aktif"}
+					>
+						<Trash2 class="h-3 w-3 text-rose-400" />
+						<span class="hidden lg:inline">Hapus Form</span>
+					</button>
 				</div>
 			</div>
 
@@ -768,13 +813,18 @@
 
 						<!-- Window Buttons: Min, Max, Close -->
 						<div class="flex items-center gap-1 text-slate-400">
-							<button type="button" class="h-4 w-4 flex items-center justify-center rounded hover:bg-slate-700 hover:text-white text-xs">
+							<button type="button" class="h-4 w-4 flex items-center justify-center rounded hover:bg-slate-700 hover:text-white text-xs" title="Minimize Form">
 								<Minus class="h-3 w-3" />
 							</button>
-							<button type="button" class="h-4 w-4 flex items-center justify-center rounded hover:bg-slate-700 hover:text-white text-xs">
+							<button type="button" class="h-4 w-4 flex items-center justify-center rounded hover:bg-slate-700 hover:text-white text-xs" title="Maximize Form">
 								<Maximize2 class="h-2.5 w-2.5" />
 							</button>
-							<button type="button" class="h-4 w-4 flex items-center justify-center rounded hover:bg-rose-900 hover:text-rose-200 text-xs">
+							<button
+								type="button"
+								onclick={() => activePage && handleDeletePage(activePage.id, activePage.title)}
+								class="h-4 w-4 flex items-center justify-center rounded hover:bg-rose-600 hover:text-white text-xs transition cursor-pointer"
+								title="Hapus / Tutup Form Ini (Delete Form)"
+							>
 								<X class="h-3 w-3" />
 							</button>
 						</div>
@@ -1105,24 +1155,39 @@
 										{#each groupPages as { pg, idx }}
 											{@const isActiveForm = activePageIndex === idx}
 											{@const isSubMenu = !!pg.parent_slug}
-											<div class="flex flex-col {isSubMenu ? 'pl-2.5' : ''}">
-												<button
-													type="button"
-													onclick={() => {
-														activePageIndex = idx;
-														selectedComponentId = pg.components?.[0]?.id || null;
-													}}
-													class="flex items-center justify-between rounded px-2 py-1 text-left transition {isActiveForm ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}"
-												>
-													<div class="flex items-center gap-1.5 truncate">
+											<div class="flex flex-col group/formitem {isSubMenu ? 'pl-2.5' : ''}">
+												<div class="flex items-center justify-between rounded px-2 py-1 transition {isActiveForm ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}">
+													<button
+														type="button"
+														onclick={() => {
+															activePageIndex = idx;
+															selectedComponentId = pg.components?.[0]?.id || null;
+														}}
+														class="flex items-center gap-1.5 truncate flex-1 text-left"
+													>
 														{#if isSubMenu}
 															<span class="text-teal-400 font-bold text-[10px]">↳</span>
 														{/if}
 														<FileText class="h-3 w-3 shrink-0 {isSubMenu ? 'text-teal-400' : 'text-slate-400'}" />
 														<span class="truncate">frm_{pg.slug}</span>
+													</button>
+													<div class="flex items-center gap-1 shrink-0">
+														<span class="text-[9px] opacity-75">({pg.components?.length || 0})</span>
+														{#if runtimeApp && runtimeApp.pages.length > 1}
+															<button
+																type="button"
+																onclick={(e) => {
+																	e.stopPropagation();
+																	handleDeletePage(pg.id, pg.title);
+																}}
+																class="opacity-0 group-hover/formitem:opacity-100 hover:text-rose-300 p-0.5 rounded transition text-slate-400 hover:bg-rose-900/60 cursor-pointer"
+																title="Hapus Form {pg.title}"
+															>
+																<Trash2 class="h-3 w-3" />
+															</button>
+														{/if}
 													</div>
-													<span class="text-[9px] opacity-75 shrink-0">({pg.components?.length || 0})</span>
-												</button>
+												</div>
 
 												<!-- Components under Active Form -->
 												{#if isActiveForm && pg.components && pg.components.length > 0}
@@ -1218,7 +1283,16 @@
 										<input
 											type="text"
 											bind:value={selectedComponent.name}
+											oninput={() => {
+												if (selectedComponent.props) {
+													selectedComponent.props.title = selectedComponent.name;
+												}
+												debounceSaveProperty();
+											}}
 											onblur={handleSaveComponentProperty}
+											onkeydown={(e) => {
+												if (e.key === 'Enter') handleSaveComponentProperty();
+											}}
 											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
 										/>
 									</td>
@@ -1242,8 +1316,12 @@
 												if (!selectedComponent.props) selectedComponent.props = {};
 												selectedComponent.props.title = e.currentTarget.value;
 												selectedComponent.name = e.currentTarget.value;
+												debounceSaveProperty();
 											}}
 											onblur={handleSaveComponentProperty}
+											onkeydown={(e) => {
+												if (e.key === 'Enter') handleSaveComponentProperty();
+											}}
 											class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
 										/>
 									</td>
@@ -1297,8 +1375,12 @@
 												oninput={(e) => {
 													if (!selectedComponent.props) selectedComponent.props = {};
 													selectedComponent.props.placeholder = e.currentTarget.value;
+													debounceSaveProperty();
 												}}
 												onblur={handleSaveComponentProperty}
+												onkeydown={(e) => {
+													if (e.key === 'Enter') handleSaveComponentProperty();
+												}}
 												class="w-full bg-transparent text-slate-200 outline-none focus:bg-slate-950 px-1 py-0.5 rounded"
 											/>
 										</td>
