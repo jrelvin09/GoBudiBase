@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { onMount } from 'svelte';
 	import {
 		fetchRuntimeApp,
@@ -64,7 +64,9 @@
 		CheckSquare,
 		ToggleLeft,
 		Tag,
-		AlertTriangle
+		AlertTriangle,
+		BarChart3,
+		Blocks
 	} from 'lucide-svelte';
 	import { catalog } from '$lib/kit/catalog';
 	import { catalogTitle } from '$lib/kit/catalog-title';
@@ -88,7 +90,7 @@
 	let saveSuccess = $state(false);
 
 	// Visual Basic Toolbox State
-	let toolboxTab = $state<'standard' | 'uikit' | 'tables'>('standard');
+	let toolboxTab = $state<'standard' | 'uikit' | 'tables' | 'budibase'>('standard');
 	let toolboxSearch = $state('');
 
 	// Visual Basic Property Grid State
@@ -108,6 +110,9 @@
 	let newPageLayout = $state('single');
 	let newPageGroup = $state('Menu Utama');
 	let newPageParentSlug = $state<string | null>(null);
+	// Screen Wizard mode
+	let wizardMode = $state<'blank' | 'auto-crud'>('blank');
+	let wizardTable = $state<string>('');
 
 	const formsByGroup = $derived.by(() => {
 		const groups: Record<string, { pg: RuntimePage; idx: number }[]> = {};
@@ -199,6 +204,16 @@
 
 	const allAvailableControls = [...standardControls, ...uikitControls];
 
+	// Budibase Blocks — high-level composed blocks (Fase 2 runtime)
+	const budibaseBlocks = [
+		{ type: 'data_provider',    name: 'Data Provider',    icon: Database,    group: 'Blocks', desc: 'Fetch data dari tabel/RPC, expose ke child components' },
+		{ type: 'table_block',      name: 'Table Block',      icon: Grid3X3,     group: 'Blocks', desc: 'Auto-generate tabel dari schema dengan search, sort, paginate' },
+		{ type: 'form_block',       name: 'Form Block',       icon: Layout,      group: 'Blocks', desc: 'Auto-generate form input dari column types' },
+		{ type: 'cards_repeater',   name: 'Cards Repeater',   icon: LayoutGrid,  group: 'Blocks', desc: 'Repeat card template untuk setiap row data' },
+		{ type: 'chart_block',      name: 'Chart Block',      icon: BarChart3,   group: 'Blocks', desc: 'Bar/Line/Pie/Donut chart dari data binding' },
+		{ type: 'container_section',name: 'Container/Section',icon: Square,      group: 'Blocks', desc: 'Layout container dengan padding, background, border' },
+	];
+
 	const filteredStandard = $derived(
 		standardControls.filter((c) =>
 			!toolboxSearch || c.name.toLowerCase().includes(toolboxSearch.toLowerCase()) || c.type.toLowerCase().includes(toolboxSearch.toLowerCase())
@@ -208,6 +223,12 @@
 	const filteredUiKit = $derived(
 		uikitControls.filter((c) =>
 			!toolboxSearch || c.name.toLowerCase().includes(toolboxSearch.toLowerCase()) || c.type.toLowerCase().includes(toolboxSearch.toLowerCase())
+		)
+	);
+
+	const filteredBudibase = $derived(
+		budibaseBlocks.filter((c) =>
+			!toolboxSearch || c.name.toLowerCase().includes(toolboxSearch.toLowerCase()) || c.desc.toLowerCase().includes(toolboxSearch.toLowerCase())
 		)
 	);
 
@@ -319,6 +340,59 @@
 			schema: table.schema,
 			table: table.name
 		});
+	}
+
+	// Auto-CRUD Wizard: create 3 pages (List + Create Form + Edit/Detail) for a table
+	async function handleAutoCrud(tableName: string, groupName: string) {
+		if (!runtimeApp) return;
+		const appId = runtimeApp.app.id;
+		const base = tableName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+		const timestamp = Date.now();
+
+		// 1. List page
+		await createNewPage({
+			app_id: appId,
+			slug: `${base}_list_${timestamp}`,
+			title: `${tableName} — List`,
+			layout: 'single',
+			group_name: groupName || 'Menu Utama',
+			parent_slug: null
+		});
+		await loadApp();
+		const listPageIdx = (runtimeApp?.pages.length ?? 1) - 1;
+		activePageIndex = listPageIdx;
+		await handleAddComponent('table_block', `${tableName} Table`, { table: tableName });
+
+		// 2. Create Form page
+		await createNewPage({
+			app_id: appId,
+			slug: `${base}_create_${timestamp}`,
+			title: `${tableName} — Tambah`,
+			layout: 'single',
+			group_name: groupName || 'Menu Utama',
+			parent_slug: null
+		});
+		await loadApp();
+		const createPageIdx = (runtimeApp?.pages.length ?? 1) - 1;
+		activePageIndex = createPageIdx;
+		await handleAddComponent('form_block', `Form Tambah ${tableName}`, { table: tableName, mode: 'create' });
+
+		// 3. Edit/Detail page
+		await createNewPage({
+			app_id: appId,
+			slug: `${base}_edit_${timestamp}`,
+			title: `${tableName} — Edit`,
+			layout: 'single',
+			group_name: groupName || 'Menu Utama',
+			parent_slug: null
+		});
+		await loadApp();
+		const editPageIdx = (runtimeApp?.pages.length ?? 1) - 1;
+		activePageIndex = editPageIdx;
+		await handleAddComponent('form_block', `Form Edit ${tableName}`, { table: tableName, mode: 'edit' });
+
+		// Navigate to list page
+		activePageIndex = listPageIdx;
 	}
 
 	function triggerSaveNotification() {
@@ -482,12 +556,12 @@
 					<span>Toolbox</span>
 				</div>
 				<span class="font-mono text-[10px] text-slate-500">
-					{toolboxTab === 'standard' ? `${standardControls.length} APEX` : toolboxTab === 'uikit' ? `${catalog.length} UI Kit` : `${schemaTables.length} Tables`}
+					{toolboxTab === 'standard' ? `${standardControls.length} APEX` : toolboxTab === 'uikit' ? `${catalog.length} UI Kit` : toolboxTab === 'tables' ? `${schemaTables.length} Tables` : `${budibaseBlocks.length} Blocks`}
 				</span>
 			</div>
 
-			<!-- Toolbox Tabs: APEX Standard | UI Kit (71) | DB Schema -->
-			<div class="grid grid-cols-3 border-b border-slate-800 text-[10px] font-bold text-center">
+			<!-- Toolbox Tabs: APEX Standard | UI Kit (71) | DB Schema | Budibase Blocks -->
+			<div class="grid grid-cols-4 border-b border-slate-800 text-[10px] font-bold text-center">
 				<button
 					type="button"
 					onclick={() => (toolboxTab = 'standard')}
@@ -508,6 +582,13 @@
 					class="py-1.5 transition {toolboxTab === 'tables' ? 'bg-slate-800 text-amber-400 border-b-2 border-amber-500' : 'bg-slate-950/60 text-slate-400 hover:text-slate-200'}"
 				>
 					Database
+				</button>
+				<button
+					type="button"
+					onclick={() => (toolboxTab = 'budibase')}
+					class="py-1.5 transition {toolboxTab === 'budibase' ? 'bg-slate-800 text-purple-400 border-b-2 border-purple-500' : 'bg-slate-950/60 text-slate-400 hover:text-slate-200'}"
+				>
+					Blocks
 				</button>
 			</div>
 
@@ -599,6 +680,31 @@
 									+ Grid
 								</button>
 							</div>
+						{/each}
+					</div>
+				{:else if toolboxTab === 'budibase'}
+					<!-- Budibase Blocks - high-level composed blocks -->
+					<div class="grid grid-cols-2 gap-1.5">
+						{#each filteredBudibase as item}
+							{@const Icon = item.icon}
+							<button
+								type="button"
+								draggable="true"
+								ondragstart={(e) => {
+									e.dataTransfer?.setData('text/gobudibase-component', item.type);
+									e.dataTransfer?.setData('text/plain', item.name);
+								}}
+								onclick={() => handleAddComponent(item.type, item.name)}
+								class="flex flex-col items-center justify-center rounded border border-purple-900/40 bg-slate-950/60 p-2 text-center transition hover:border-purple-500/70 hover:bg-purple-950/20 group cursor-grab active:cursor-grabbing shadow-sm"
+								title="{item.name}: {item.desc}"
+							>
+								<div class="mb-1 rounded p-1 text-purple-400 group-hover:text-purple-300 group-hover:scale-110 transition">
+									<Icon class="h-4 w-4" />
+								</div>
+								<span class="text-[10px] font-semibold text-slate-300 group-hover:text-purple-300 line-clamp-1">
+									{item.name}
+								</span>
+							</button>
 						{/each}
 					</div>
 				{/if}
@@ -1394,7 +1500,63 @@
 				<button type="button" onclick={() => (showAddPageModal = false)} class="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white">&times;</button>
 			</div>
 
-			<form onsubmit={(e) => { e.preventDefault(); handleAddPage(); }} class="mt-4 flex flex-col gap-3 text-xs">
+			<!-- Wizard Mode Toggle -->
+			<div class="mt-3 mb-3 flex rounded-lg border border-slate-800 overflow-hidden text-xs font-bold">
+				<button
+					type="button"
+					onclick={() => (wizardMode = 'blank')}
+					class="flex-1 py-1.5 transition {wizardMode === 'blank' ? 'bg-emerald-700 text-white' : 'bg-slate-950 text-slate-400 hover:text-slate-200'}"
+				>
+					📄 Blank Page
+				</button>
+				<button
+					type="button"
+					onclick={() => (wizardMode = 'auto-crud')}
+					class="flex-1 py-1.5 transition {wizardMode === 'auto-crud' ? 'bg-purple-700 text-white' : 'bg-slate-950 text-slate-400 hover:text-slate-200'}"
+				>
+					⚡ Auto-CRUD Wizard
+				</button>
+			</div>
+
+			{#if wizardMode === 'auto-crud'}
+				<!-- Auto-CRUD Wizard -->
+				<div class="flex flex-col gap-3 text-xs">
+					<div class="rounded-lg border border-purple-800/40 bg-purple-950/20 p-3 text-purple-300 text-[11px] leading-relaxed">
+						⚡ Pilih tabel → otomatis buat 3 page: <strong>List</strong>, <strong>Tambah</strong>, <strong>Edit</strong> + komponen block terpasang.
+					</div>
+					<div class="flex flex-col gap-1">
+						<label class="font-semibold text-slate-300">Pilih Tabel</label>
+						<select
+							bind:value={wizardTable}
+							class="rounded border border-slate-800 bg-slate-950 px-2 py-2 text-slate-200 focus:border-purple-500 focus:outline-none cursor-pointer"
+						>
+							<option value="">-- Pilih tabel --</option>
+							{#each schemaTables as tbl}
+								<option value={tbl.name}>{tbl.schema}.{tbl.name}</option>
+							{/each}
+						</select>
+					</div>
+					<div class="flex flex-col gap-1">
+						<label class="font-semibold text-slate-300">Menu Group</label>
+						<input
+							type="text"
+							bind:value={newPageGroup}
+							placeholder="Menu Utama"
+							class="rounded border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-purple-500 focus:outline-none"
+						/>
+					</div>
+					<div class="mt-3 flex justify-end gap-2 border-t border-slate-800 pt-3">
+						<button type="button" onclick={() => (showAddPageModal = false)} class="rounded px-3 py-1.5 font-semibold text-slate-400 hover:bg-slate-800 hover:text-white">Batal</button>
+						<button
+							type="button"
+							disabled={!wizardTable}
+							onclick={async () => { showAddPageModal = false; await handleAutoCrud(wizardTable, newPageGroup); wizardTable = ''; }}
+							class="rounded bg-purple-600 px-4 py-1.5 font-bold text-white shadow-lg shadow-purple-600/30 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+						>⚡ Generate 3 Pages</button>
+					</div>
+				</div>
+			{:else}
+			<form onsubmit={(e) => { e.preventDefault(); handleAddPage(); }} class="mt-1 flex flex-col gap-3 text-xs">
 				<div class="flex flex-col gap-1">
 					<label for="new-page-title" class="font-semibold text-slate-300">Form Caption (Judul)</label>
 					<input
@@ -1469,6 +1631,7 @@
 					<button type="submit" class="rounded bg-emerald-600 px-4 py-1.5 font-bold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500">Create Form</button>
 				</div>
 			</form>
+			{/if}
 		</div>
 	</div>
 {/if}

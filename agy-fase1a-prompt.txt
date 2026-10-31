@@ -1,0 +1,59 @@
+In file C:\fun\Supabase\GoBudiBase\web-svelte\src\lib\studio\PageDesigner.svelte, make these changes:
+
+STEP 1: Change toolboxTab state type to include 'budibase':
+Find: let toolboxTab = $state<'standard' | 'uikit' | 'tables'>('standard');
+Replace with: let toolboxTab = $state<'standard' | 'uikit' | 'tables' | 'budibase'>('standard');
+
+STEP 2: Make sure these icons are imported from lucide-svelte: LayoutGrid, BarChart3, Square, Blocks.
+Add any missing ones to the existing lucide-svelte import line.
+
+STEP 3: After the line that defines `const uikitControls`, add this array:
+const budibaseBlocks = [
+  { type: 'data_provider', name: 'Data Provider', icon: Database, group: 'Blocks', desc: 'Fetch data dari tabel/RPC, expose ke child components' },
+  { type: 'table_block', name: 'Table Block', icon: Grid3X3, group: 'Blocks', desc: 'Auto-generate tabel dari schema dengan search, sort, paginate' },
+  { type: 'form_block', name: 'Form Block', icon: Layout, group: 'Blocks', desc: 'Auto-generate form input dari column types' },
+  { type: 'cards_repeater', name: 'Cards Repeater', icon: LayoutGrid, group: 'Blocks', desc: 'Repeat card template untuk setiap row data' },
+  { type: 'chart_block', name: 'Chart Block', icon: BarChart3, group: 'Blocks', desc: 'Bar/Line/Pie/Donut chart dari data binding' },
+  { type: 'container_section', name: 'Container/Section', icon: Square, group: 'Blocks', desc: 'Layout container dengan padding, background, border' },
+];
+
+STEP 4: After the filteredUikit derived variable, add:
+const filteredBudibase = $derived(
+  budibaseBlocks.filter((c) =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.desc.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+);
+
+STEP 5: In the toolbox count display line (the line with "APEX" / "UI Kit" / "Tables" count text), add the budibase case. The current ternary likely ends with schemaTables.length + " Tables". Change it to end with:
+toolboxTab === 'tables' ? `${schemaTables.length} Tables` : `${budibaseBlocks.length} Blocks`
+
+STEP 6: In the toolbox tab buttons row (the row of 3 buttons for APEX/UI KIT/TABLES), add a 4th button after the Tables button:
+<button
+  onclick={() => (toolboxTab = 'budibase')}
+  class="py-1.5 transition {toolboxTab === 'budibase' ? 'bg-slate-800 text-purple-400 border-b-2 border-purple-500' : 'bg-slate-950/60 text-slate-400 hover:text-slate-200'}"
+>
+  <Blocks class="h-3 w-3 mx-auto mb-0.5" />
+  <div class="text-[9px] font-mono">BLOCKS</div>
+</button>
+
+STEP 7: In the toolbox content area after the {:else if toolboxTab === 'tables'}...{/if} block, BEFORE the closing {/if}, add:
+{:else if toolboxTab === 'budibase'}
+  <div class="grid grid-cols-2 gap-1.5 p-2">
+    {#each filteredBudibase as item}
+      <div
+        class="bg-slate-900 border border-purple-900/40 rounded p-2 cursor-grab hover:border-purple-500/60 hover:bg-slate-800 transition group"
+        draggable="true"
+        ondragstart={(e) => { e.dataTransfer?.setData('text/gobudibase-component', item.type); }}
+        ondblclick={() => handleAddComponent(item.type, item.name)}
+        title={item.desc}
+      >
+        <svelte:component this={item.icon} class="h-4 w-4 text-purple-400 mb-1 group-hover:text-purple-300" />
+        <div class="text-[10px] font-semibold text-slate-200 leading-tight">{item.name}</div>
+        <div class="text-[9px] text-slate-500 mt-0.5 leading-tight">{item.desc}</div>
+      </div>
+    {/each}
+  </div>
+
+After all changes, run: cd C:\fun\Supabase\GoBudiBase\web-svelte and npm run build
+Report success or errors.
