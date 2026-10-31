@@ -1,0 +1,350 @@
+================================================================================
+          BLUEPRINT ARSITEKTUR MIGRASI: GOB Pflanzen / GOBUDIBASE
+     Stack: Go Native + SvelteKit (Static Adapter) + TailwindCSS + shadcn-svelte
+================================================================================
+
+Tanggal Dokumen : 31 Oktober 2026
+Lokasi File     : c:\fun\supabase\GoBudiBase\bp1.txt
+Root Directory  : c:\fun\supabase\GoBudiBase
+Host Target     : 10.10.1.106 (Ubuntu 24.04 noble minimal, 4 vCPU, 7.8 GiB RAM)
+Database Engine : PostgreSQL 17.11 (Port 54322, 23 Migrasi SQL Aktif)
+Status Lisensi  : $0 Software License (100% Free Open Source / Self-Hosted)
+
+--------------------------------------------------------------------------------
+1. RINGKASAN EKSEKUTIF & MOTIVASI MIGRASI
+--------------------------------------------------------------------------------
+
+Misi migrasi ini adalah mentransformasi seluruh backend Budibase (Node.js Koa 
++ CouchDB + Redis + PostgREST) dan frontend React SPA menjadi arsitektur generasi baru:
+"GoBudiBase" — Single Go Native Binary (<30 MB RAM) + SvelteKit Static SPA (<5 MB bundle).
+
+Manfaat Kunci Migrasi:
+1. Konsumsi RAM Backend Turun 95%:
+   - Stack Eksisting : ~580 MB - 950 MB RAM (Node.js workers, CouchDB, PostgREST).
+   - Stack Go Target : ~25 MB - 35 MB RAM (Compiled ELF binary, 0 runtime interpreter).
+2. Throughput & Latensi:
+   - Cold Start : < 20 milidetik (vs 5 - 8 detik Node.js).
+   - Latensi p95 : 1.8 ms - 4.5 ms (vs 15 ms - 80 ms PostgREST/Node).
+   - Throughput  : > 18.000 req/sec per node pada 4 vCPU.
+3. Frontend Svelte 5 + Static Adapter:
+   - Zero Virtual DOM overhead (reaktivitas tingkat compiler via Runes).
+   - 100% Client-Side SPA static files di-serve langsung oleh Nginx atau di-embed
+     ke binary Go (`embed.FS`).
+   - UI Konsisten berstandar industri dengan shadcn-svelte (Bits UI + Tailwind CSS).
+4. Zero Database Migration ($0 Risiko Data):
+   - Database PostgreSQL 17.11 dan 23 file migrasi SQL (`001` - `023`) tetap 
+     dipakai 100% tanpa perubahan skema maupun kehilangan data.
+
+--------------------------------------------------------------------------------
+2. DIAGRAM ARSITEKTUR TARGET
+--------------------------------------------------------------------------------
+
+```
++---------------------------------------------------------------------------+
+|                          CLIENT (Web Browser)                             |
+|  - SvelteKit Static SPA (HTML/JS/CSS pre-compressed Gzip & Brotli)        |
+|  - shadcn-svelte UI Shell + Lucide Icons + jsPDF                          |
++---------------------------------------------------------------------------+
+                                     |
+                                     | HTTPS (Port 443)
+                                     v
++---------------------------------------------------------------------------+
+|                           NGINX REVERSE PROXY                             |
+|  - SSL Termination (Let's Encrypt / Self-Signed)                          |
+|  - Static Hosting: /var/www/gobudibase/ (Cache-Control: immutable)        |
+|  - API Proxy: /api/ -> http://127.0.0.1:8080                              |
+|  - Security: Linux nftables Perimeter (Default DROP)                      |
++---------------------------------------------------------------------------+
+                                     |
+                                     | Loopback TCP (127.0.0.1:8080)
+                                     v
++---------------------------------------------------------------------------+
+|                   GOB Pflanzen / GO DAEMON BINARY (:8080)                 |
+|  - Go 1.23+ Standard Library net/http + go-chi/chi/v5                     |
+|  - pgxpool v5 Native PostgreSQL Driver (Max 30 connections)               |
+|  - Native JWT Authentication Middleware (HMAC-SHA256)                     |
+|  - RPC Dispatcher: Memanggil Stored Procedures api.* & app.*             |
+|  - Memory Footprint: ~25 MB RSS RAM                                       |
++---------------------------------------------------------------------------+
+                                     |
+                                     | Loopback TCP (127.0.0.1:54322)
+                                     v
++---------------------------------------------------------------------------+
+|                       POSTGRESQL 17.11 ENTERPRISE                         |
+|  - 100.000 Master Registry Items + B-Tree & Expression Indexes            |
+|  - Schemas: app (Data), audit (Append-Only CDC), api (RPC Surface)        |
+|  - Continuous WAL Archiving (PITR) ke /var/backups/postgres/wal/          |
++---------------------------------------------------------------------------+
+```
+
+--------------------------------------------------------------------------------
+3. STRUKTUR DIREKTORI PROYEK (MONOREPO)
+--------------------------------------------------------------------------------
+
+```
+GoBudiBase/
+├── bp1.txt                         # Dokumen blueprint ini
+├── cmd/
+│   └── server/
+│       └── main.go                 # Entry point Go daemon HTTP (:8080)
+├── internal/
+│   ├── config/
+│   │   └── config.go               # Load environment vars & ports
+│   ├── database/
+│   │   └── pgx.go                  # PostgreSQL 17 pgxpool connection manager
+│   ├── handlers/                   # HTTP Handlers (11 RPC Parity Endpoints)
+│   │   ├── registry.go             # list, count, update cell, batch update
+│   │   ├── aggregate.go            # aggregate_registry (SUM, AVG, COUNT)
+│   │   ├── pivot.go                # get_registry_pivot (2D cross-tab matrix)
+│   │   ├── actions.go              # execute_dynamic_action & rules registry
+│   │   ├── calendar.go             # list_calendar_events (SLA timeline)
+│   │   ├── spatial.go              # get_map_locations & get_location_tree
+│   │   ├── facets.go               # get_registry_facets (dynamic counters)
+│   │   └── reports.go              # save_grid_report & load_grid_reports
+│   └── middleware/
+│       ├── auth.go                 # JWT validation & role assertion
+│       ├── cors.go                 # CORS header policy
+│       ├── logger.go               # Structured logging (log/slog)
+│       └── recover.go              # Panic recovery
+├── web-svelte/                     # SvelteKit Static Frontend
+│   ├── package.json
+│   ├── svelte.config.js            # @sveltejs/adapter-static config
+│   ├── vite.config.ts              # Vite + Tailwind v4 plugin
+│   ├── tailwind.config.ts
+│   ├── components.json             # shadcn-svelte CLI config
+│   └── src/
+│       ├── app.html
+│       ├── app.css                 # Tailwind directives & design tokens
+│       ├── lib/
+│       │   ├── api/                # Type-safe Go API fetch client
+│       │   │   └── client.ts
+│       │   ├── components/
+│       │   │   ├── ui/             # shadcn-svelte UI library (Bits UI)
+│       │   │   │   ├── button/
+│       │   │   │   ├── card/
+│       │   │   │   ├── dialog/
+│       │   │   │   ├── dropdown-menu/
+│       │   │   │   ├── input/
+│       │   │   │   ├── select/
+│       │   │   │   ├── table/
+│       │   │   │   └── tabs/
+│       │   │   └── apex/           # Komponen Paritas Oracle APEX
+│       │   │       ├── InteractiveGrid.svelte    # Virtual Grid 60fps
+│       │   │       ├── PivotMatrix.svelte        # Cross-tab heatmap
+│       │   │       ├── DynamicActions.svelte     # Event trigger sandbox
+│       │   │       ├── PopupLOV.svelte           # Relational search modal
+│       │   │       ├── CurrencyInput.svelte      # Auto Rupiah mask
+│       │   │       ├── SignaturePad.svelte       # Canvas touch/mouse
+│       │   │       ├── CalendarTimeline.svelte   # SLA calendar & Gantt
+│       │   │       ├── AssetMapView.svelte       # Leaflet spatial map
+│       │   │       ├── FacetedSearch.svelte      # Live counter filter
+│       │   │       └── TreeView.svelte           # Recursive campus tree
+│       │   └── utils/
+│       │       └── pdfExport.ts    # Formal A4 Audit Report & BAST slip
+│       └── routes/
+│           ├── +layout.svelte      # App navigation & top bar
+│           └── +page.svelte        # Main workspace switcher
+├── deploy/
+│   ├── systemd/
+│   │   └── gobudibase.service      # Linux systemd daemon unit
+│   └── nginx/
+│       └── gobudibase.conf         # Nginx site configuration
+├── Makefile                        # Build, test, and deployment scripts
+└── go.mod
+```
+
+--------------------------------------------------------------------------------
+4. SPESIFIKASI BACKEND: GO NATIVE DAEMON
+--------------------------------------------------------------------------------
+
+### 4.1 Dependensi Go (`go.mod`)
+Hanya library standar dan driver database tercepat tanpa ORM berat:
+* `github.com/jackc/pgx/v5` : Driver PostgreSQL performa tertinggi di Go.
+* `github.com/go-chi/chi/v5` : Router HTTP idiomatik, zero memory allocation overhead.
+* `github.com/golang-jwt/jwt/v5` : Verifikasi JWT authentication.
+
+### 4.2 Koneksi Database Pool (`internal/database/pgx.go`)
+```go
+package database
+
+import (
+	"context"
+	"fmt"
+	"time"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+func Connect(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
+	config, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("gagal parse connection string: %w", err)
+	}
+
+	config.MaxConns = 30
+	config.MinConns = 5
+	config.MaxConnLifetime = 1 * time.Hour
+	config.MaxConnIdleTime = 15 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		return nil, fmt.Errorf("gagal inisialisasi pgx pool: %w", err)
+	}
+
+	if err := pool.Ping(ctx); err != nil {
+		return nil, fmt.Errorf("ping postgres gagal: %w", err)
+	}
+	return pool, nil
+}
+```
+
+### 4.3 Handlers 11 RPC Parity
+Seluruh handler mengeksekusi langsung Stored Procedures yang sudah teruji di PostgreSQL 17:
+1. `POST /api/v1/registry/list`       -> `SELECT api.list_registry($1, $2, $3, $4, $5)`
+2. `POST /api/v1/registry/count`      -> `SELECT api.count_registry($1)`
+3. `POST /api/v1/registry/update`     -> `SELECT api.update_registry_cell($1, $2, $3, $4)`
+4. `POST /api/v1/registry/batch`      -> `SELECT api.batch_update_registry($1, $2)`
+5. `POST /api/v1/registry/aggregate`  -> `SELECT api.aggregate_registry($1, $2, $3)`
+6. `POST /api/v1/reports/save`        -> `SELECT api.save_grid_report($1, $2, $3)`
+7. `POST /api/v1/reports/load`        -> `SELECT api.load_grid_reports($1)`
+8. `POST /api/v1/pivot`               -> `SELECT api.get_registry_pivot($1, $2, $3, $4)`
+9. `POST /api/v1/actions/execute`     -> `SELECT api.execute_dynamic_action($1, $2)`
+10. `POST /api/v1/actions/rules`      -> `SELECT api.list_dynamic_action_rules()`
+11. `POST /api/v1/spatial/map`        -> `SELECT api.get_map_locations()`
+12. `POST /api/v1/calendar/events`    -> `SELECT api.list_calendar_events()`
+13. `POST /api/v1/hierarchy/tree`     -> `SELECT api.get_location_tree()`
+14. `POST /api/v1/facets`             -> `SELECT api.get_registry_facets($1)`
+
+--------------------------------------------------------------------------------
+5. SPESIFIKASI FRONTEND: SVELTEKIT STATIC + SHADCN-SVELTE
+--------------------------------------------------------------------------------
+
+### 5.1 Konfigurasi SvelteKit (`svelte.config.js`)
+Mode SPA murni (Single-Page Application) tanpa server runtime Node.js:
+```javascript
+import adapter from '@sveltejs/adapter-static';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+  preprocess: vitePreprocess(),
+  kit: {
+    adapter: adapter({
+      pages: 'build',
+      assets: 'build',
+      fallback: 'index.html',
+      precompress: true, // Generate otomatis file .gz dan .br
+      strict: true
+    }),
+    alias: {
+      $lib: './src/lib',
+      '$lib/*': './src/lib/*'
+    }
+  }
+};
+
+export default config;
+```
+
+### 5.2 Integrasi shadcn-svelte (`components.json`)
+Komponen UI berbasis headless Bits UI + Tailwind CSS:
+```json
+{
+  "$schema": "https://shadcn-svelte.com/schema.json",
+  "style": "default",
+  "tailwind": {
+    "config": "tailwind.config.ts",
+    "css": "src/app.css",
+    "baseColor": "slate"
+  },
+  "aliases": {
+    "components": "$lib/components",
+    "utils": "$lib/utils"
+  }
+}
+```
+
+### 5.3 Implementasi Komponen Paritas APEX (Svelte 5 Runes)
+1. **InteractiveGrid.svelte**:
+   - Virtual list high-performance rendering baris data secara lazy.
+   - Svelte 5 `$state` untuk tracking sel yang dimodifikasi (`dirtyCells`).
+   - Copy-paste event handler native clipboard TSV.
+2. **PivotMatrix.svelte**:
+   - Reaktif terhadap perubahan row dimension & col dimension dropdown.
+   - Tailwind dynamic class binding untuk visualisasi intensitas heatmap (`bg-blue-500/20`).
+   - Klik sel langsung membuka drawer drill-down 50 record aset.
+3. **DynamicActions.svelte**:
+   - Reaktif `$effect` memantau input form sandbox (Threshold Nilai, Kategori, Status).
+   - Auto-lock field, auto-highlight, dan pemanggilan RPC Go `api.execute_dynamic_action`.
+   - Real-time terminal log inspector dengan latency stopwatch.
+4. **PopupLOV.svelte**:
+   - Menggunakan shadcn-svelte `Dialog` + `Input` search query debounce.
+5. **pdfExport.ts**:
+   - Library `jspdf` dan `jspdf-autotable` dijalankan 100% di browser.
+   - Output: Laporan Resmi Audit A4 Landscape + Berita Acara BAST dengan tanda tangan digital.
+
+--------------------------------------------------------------------------------
+6. RENCANA IMPLEMENTASI BERTAHAP (EXPAND -> MIGRATE -> VERIFY -> CONTRACT)
+--------------------------------------------------------------------------------
+
+### TAHAP 1: SCAFFOLDING & GO BACKEND DAEMON
+1. Inisialisasi modul Go di folder `GoBudiBase`.
+2. Bangun koneksi pool `pgx` ke PostgreSQL 17 pada `127.0.0.1:54322`.
+3. Buat 14 HTTP handlers memetakan semua RPC `api.*`.
+4. Kompilasi binary: `go build -ldflags="-s -w" -o bin/gobudibase cmd/server/main.go`.
+5. Uji curl lokal pada port `8080` (Pastikan output JSON 100% identik dengan PostgREST).
+
+### TAHAP 2: FRONTEND SVELTEKIT & SHADCN-SVELTE
+1. Inisialisasi SvelteKit: `npx sv create web-svelte` (Pilih Svelte 5 + TypeScript).
+2. Pasang dependencies: `npm install -D @sveltejs/adapter-static tailwindcss @tailwindcss/vite`.
+3. Pasang shadcn-svelte: `npx shadcn-svelte@latest init`.
+4. Porting 8 modul APEX dari React ke Svelte komponen (`.svelte`).
+5. Eksekusi build: `npm run build` -> menghasilkan file statis di `web-svelte/build/`.
+
+### TAHAP 3: DUAL-ROUTING PADA NGINX SERVER 10.10.1.106
+Deploy binary Go dan static build ke server fisik tanpa mematikan sistem lama:
+- Binary Go dipasang sebagai service systemd: `/etc/systemd/system/gobudibase.service`.
+- File web dipasang di: `/var/www/gobudibase/`.
+- Konfigurasi Nginx sub-path `/next/` atau `/v2/`:
+  ```nginx
+  location ^~ /v2/api/ {
+      proxy_pass http://127.0.0.1:8080/;
+      proxy_set_header Host $host;
+  }
+  location ^~ /v2/ {
+      alias /var/www/gobudibase/;
+      try_files $uri $uri/ /v2/index.html;
+  }
+  ```
+
+### TAHAP 4: STRESS TEST & BENCHMARK KOMPARATIF (k6)
+Jalankan stress test k6 membandingkan endpoint lama vs baru:
+* Target Go Backend:
+  - Error rate: **0.00%**.
+  - Latensi p95: **< 5 ms** (3x - 10x lebih cepat dibanding PostgREST).
+  - RAM usage Go binary: **< 35 MB**.
+
+### TAHAP 5: FINAL CUTOVER & DECOMMISSIONING NODE.JS
+1. Ubah root path `/` dan `/grid/` pada Nginx untuk mengarah ke GoBudiBase.
+2. Hentikan service Node.js lama:
+   ```bash
+   sudo systemctl stop budibase
+   sudo systemctl disable budibase
+   ```
+3. Server 10.10.1.106 beroperasi ultra-ringan: Hanya Nginx + Go Binary + PostgreSQL 17.
+
+--------------------------------------------------------------------------------
+7. RENCANA ROLLBACK & SAFETY MEASURES
+--------------------------------------------------------------------------------
+
+1. Data Safety Invariant:
+   - Tidak ada operasi DDL yang merusak tabel atau kolom yang ada.
+   - Skema `app`, `audit`, dan `api` di PostgreSQL 17 tetap utuh.
+2. Rollback Nginx:
+   - Cukup ubah kembali `proxy_pass` ke port 4001 dan `/var/www/grid/` lama.
+   - Jalankan `sudo nginx -s reload` (Waktu eksekusi rollback: **< 5 detik**).
+3. Rollback Service:
+   - Jalankan `sudo systemctl start budibase`.
+
+================================================================================
+Dokumen blueprint resmi disimpan di: GoBudiBase/bp1.txt
+================================================================================

@@ -1,0 +1,15 @@
+# Binaries
+bin/
+*.exe
+*.tar.gz
+
+# Node
+node_modules/
+.svelte-kit/
+build/
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
