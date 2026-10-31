@@ -1,0 +1,130 @@
+{
+  "hcmRoles": [
+    {
+      "roleId": "RL1041",
+      "roleName": "CPEA_OD_KTU_ADMIN_ASJ",
+      "roleStatus": "A",
+      "descr": "Role modul OD untuk KTU ASJ"
+    },
+    {
+      "roleId": "RL1006",
+      "roleName": "CPEA_PY_ASMEN_ADMIN_KYA",
+      "roleStatus": "A",
+      "descr": "Role Modul PY Asisten Manager KYA"
+    },
+    {
+      "roleId": "RL1004",
+      "roleName": "CPEA_PY_ASMEN_ADMIN_SWA",
+      "roleStatus": "A",
+      "descr": "Role Modul PY Asisten Manager SWA"
+    },
+    {
+      "roleId": "RL1005",
+      "roleName": "CPEA_PY_ASMEN_ADMIN_TMM",
+      "roleStatus": "A",
+      "descr": "Role Modul PY Asisten Manager TMM"
+    },
+    {
+      "roleId": "RL1007",
+      "roleName": "CPEA_PY_KTU_ADMIN_KYA",
+      "roleStatus": "A",
+      "descr": "Role Modul PY KTU Admin (KYAGDJ)"
+    },
+    {
+      "roleId": "RL1002",
+      "roleName": "CPEA_PY_KTU_ADMIN_SWA",
+      "roleStatus": "A",
+      "descr": "Role Modul PY KTU Admin (SWA)"
+    },
+    {
+      "roleId": "RL1003",
+      "roleName": "CPEA_PY_KTU_ADMIN_TMM",
+      "roleStatus": "A",
+      "descr": "Role Modul PY KTU Admin (TMM)"
+    },
+    {
+      "roleId": "RL1042",
+      "roleName": "CPEA_TA_KTU_ADMIN_ASJ",
+      "roleStatus": "A",
+      "descr": "Role modul TA untuk KTU ASJ"
+    },
+    {
+      "roleId": "RL1040",
+      "roleName": "CPEA_WA_KTU_ADMIN_ASJ",
+      "roleStatus": "A",
+      "descr": "Role modul WA untuk KTU ASJ"
+    },
+    {
+      "roleId": "RL1001",
+      "roleName": "SUPER ADMINISTRATOR",
+      "roleStatus": "A",
+      "descr": "ROLE U/ SUPER ADMIN"
+    }
+  ],
+  "managementRoles": [
+    {
+      "rowNo": 1,
+      "roleName": "Accounting HO"
+    },
+    {
+      "rowNo": 2,
+      "roleName": "Accounting RO"
+    },
+    {
+      "rowNo": 3,
+      "roleName": "Admin Divisi"
+    },
+    {
+      "rowNo": 4,
+      "roleName": "Admin HO"
+    },
+    {
+      "rowNo": 5,
+      "roleName": "Admin KTU"
+    },
+    {
+      "rowNo": 6,
+      "roleName": "Asisten Manager"
+    },
+    {
+      "rowNo": 7,
+      "roleName": "Budget Officer RO"
+    },
+    {
+      "rowNo": 8,
+      "roleName": "Finance HO"
+    },
+    {
+      "rowNo": 9,
+      "roleName": "Finance RO"
+    },
+    {
+      "rowNo": 10,
+      "roleName": "HR"
+    },
+    {
+      "rowNo": 11,
+      "roleName": "IT HO"
+    },
+    {
+      "rowNo": 12,
+      "roleName": "IT RO"
+    },
+    {
+      "rowNo": 13,
+      "roleName": "Kepala KTU"
+    },
+    {
+      "rowNo": 14,
+      "roleName": "Kepala Kebun"
+    },
+    {
+      "rowNo": 15,
+      "roleName": "Legal HO"
+    },
+    {
+      "rowNo": 16,
+      "roleName": "Operation HO"
+    }
+  ]
+}

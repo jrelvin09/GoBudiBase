@@ -85,21 +85,46 @@ export interface TableColumn {
 	position: number;
 }
 
+import { STATIC_APPS_LIST, STATIC_PIMS_APP, STATIC_PIMS_TABLES } from './staticApps';
+
 const API_BUILDER = '/api/v1/builder';
 
-export async function fetchRuntimeApp(slug: string = 'bmn-enterprise'): Promise<RuntimeApp> {
-	const res = await fetch(`${API_BUILDER}/runtime?slug=${encodeURIComponent(slug)}`);
-	if (!res.ok) {
-		const txt = await res.text();
-		throw new Error(`Failed to load runtime app [${res.status}]: ${txt}`);
+export async function fetchRuntimeApp(slug: string = 'gopimsbase'): Promise<RuntimeApp> {
+	try {
+		const res = await fetch(`${API_BUILDER}/runtime?slug=${encodeURIComponent(slug)}`);
+		if (res.ok) {
+			const data = await res.json();
+			if (data && data.app && data.pages && data.pages.length > 0) {
+				return data;
+			}
+		}
+	} catch (e) {
+		console.warn(`[builderClient] API failed to load runtime app (${slug}), using fallback:`, e);
 	}
-	return res.json();
+
+	if (slug === 'gopimsbase') {
+		return STATIC_PIMS_APP;
+	}
+	return STATIC_PIMS_APP;
 }
 
 export async function fetchAppsList(): Promise<AppListItem[]> {
-	const res = await fetch(`${API_BUILDER}/apps`);
-	if (!res.ok) throw new Error('Failed to fetch apps list');
-	return res.json();
+	try {
+		const res = await fetch(`${API_BUILDER}/apps`);
+		if (res.ok) {
+			const list = await res.json();
+			if (Array.isArray(list) && list.length > 0) {
+				const hasPims = list.some((a: AppListItem) => a.slug === 'gopimsbase');
+				if (!hasPims) {
+					list.unshift(STATIC_APPS_LIST[0]);
+				}
+				return list;
+			}
+		}
+	} catch (e) {
+		console.warn('[builderClient] API failed to fetch apps list, using fallback:', e);
+	}
+	return STATIC_APPS_LIST;
 }
 
 export async function createNewApp(data: {
@@ -209,9 +234,22 @@ export async function deleteComponent(component_id: number): Promise<void> {
 }
 
 export async function fetchSchemaTables(): Promise<SchemaTable[]> {
-	const res = await fetch(`${API_BUILDER}/schema/tables`);
-	if (!res.ok) throw new Error('Failed to fetch schema tables');
-	return res.json();
+	try {
+		const res = await fetch(`${API_BUILDER}/schema/tables`);
+		if (res.ok) {
+			const tables = await res.json();
+			if (Array.isArray(tables) && tables.length > 0) {
+				const hasPims = tables.some((t: SchemaTable) => t.schema === 'pims');
+				if (!hasPims) {
+					return [...STATIC_PIMS_TABLES.filter(t => t.schema === 'pims'), ...tables];
+				}
+				return tables;
+			}
+		}
+	} catch (e) {
+		console.warn('[builderClient] Failed to fetch schema tables, using fallback:', e);
+	}
+	return STATIC_PIMS_TABLES;
 }
 
 export async function fetchTableColumns(schema: string, table: string): Promise<TableColumn[]> {

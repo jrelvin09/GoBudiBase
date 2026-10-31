@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,8 +20,19 @@ import (
 	"gobudibase/internal/middleware"
 )
 
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type LoginResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	User    any    `json:"user,omitempty"`
+}
+
 func main() {
-	slog.Info("Memulai daemon GoBudiBase Enterprise...")
+	slog.Info("Memulai daemon GoPimsBase (Harvest Cloud Oracle APEX Clone)...")
 	cfg := config.Load()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -42,11 +56,45 @@ func main() {
 	// Healthcheck endpoint
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"ok","engine":"GoBudiBase Native","time":"` + time.Now().UTC().Format(time.RFC3339) + `"}`))
+		w.Write([]byte(`{"status":"ok","engine":"GoPimsBase Native","time":"` + time.Now().UTC().Format(time.RFC3339) + `"}`))
 	})
 
 	// REST RPC Routes (/api/v1)
 	r.Route("/api/v1", func(r chi.Router) {
+		// Authentication endpoint for Harvest Cloud PIMS
+		r.Post("/auth/login", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			var req LoginRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(LoginResponse{Success: false, Message: "Payload tidak valid"})
+				return
+			}
+
+			userUpper := strings.ToUpper(strings.TrimSpace(req.Username))
+			if (userUpper == "IT000002" && req.Password == "Palembang@2026") ||
+				(userUpper == "MUKTI" && req.Password == "Palembang@2026") ||
+				(userUpper == "ADMIN" && req.Password == "admin") {
+				json.NewEncoder(w).Encode(LoginResponse{
+					Success: true,
+					User: map[string]string{
+						"username":       userUpper,
+						"fullName":       "Mukti Assary",
+						"role":           "Administrator HCM & Plantation",
+						"email":          "mukti@company.com",
+						"subsidiaryCode": "PLMB",
+						"subsidiaryName": "PT Palembang Agro Mandiri",
+					},
+				})
+			} else {
+				w.WriteHeader(http.StatusUnauthorized)
+				json.NewEncoder(w).Encode(LoginResponse{
+					Success: false,
+					Message: "Invalid Login Credentials. Please wait 5 seconds to sign in again.",
+				})
+			}
+		})
+
 		r.Post("/registry/list", handlers.HandleListRegistry(pool))
 		r.Post("/registry/count", handlers.HandleCountRegistry(pool))
 		r.Post("/registry/update", handlers.HandleUpdateCell(pool))
@@ -96,6 +144,31 @@ func main() {
 		r.Post("/r/{res}/_batch", handlers.HandleBatchOperations(pool))
 	})
 
+	// Static SPA File Server for Frontend UI
+	workDir, _ := os.Getwd()
+	buildDir := filepath.Join(workDir, "web-svelte", "build")
+	if _, err := os.Stat(buildDir); err == nil {
+		slog.Info("Menyajikan Frontend UI dari static build", "dir", buildDir)
+		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+			reqPath := r.URL.Path
+			if strings.HasPrefix(reqPath, "/gobudibase") {
+				reqPath = strings.TrimPrefix(reqPath, "/gobudibase")
+			}
+			if reqPath == "" || reqPath == "/" {
+				http.ServeFile(w, r, filepath.Join(buildDir, "index.html"))
+				return
+			}
+			targetPath := filepath.Join(buildDir, filepath.Clean(reqPath))
+			info, err := os.Stat(targetPath)
+			if err != nil || info.IsDir() {
+				// Fallback to index.html for SPA routing
+				http.ServeFile(w, r, filepath.Join(buildDir, "index.html"))
+				return
+			}
+			http.ServeFile(w, r, targetPath)
+		})
+	}
+
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      r,
@@ -105,7 +178,7 @@ func main() {
 	}
 
 	go func() {
-		slog.Info("Server HTTP GoBudiBase aktif", "port", cfg.Port)
+		slog.Info("Server HTTP GoPimsBase aktif", "port", cfg.Port, "url", "http://localhost:"+cfg.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Server listener error", "err", err)
 		}
@@ -116,9 +189,9 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
 
-	slog.Info("Mematikan server secara graceful...")
+	slog.Info("Mematikan server GoPimsBase secara graceful...")
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 	_ = server.Shutdown(shutdownCtx)
-	slog.Info("Server GoBudiBase berhenti.")
+	slog.Info("Server GoPimsBase berhenti.")
 }

@@ -5,6 +5,12 @@
 	import PimsDashboard from './PimsDashboard.svelte';
 	import PimsGridPage from './PimsGridPage.svelte';
 	import PimsProfileModal from './PimsProfileModal.svelte';
+	import SetupUserInformations from './setup/SetupUserInformations.svelte';
+	import SetupUserMenus from './setup/SetupUserMenus.svelte';
+	import SetupRoleManagement from './setup/SetupRoleManagement.svelte';
+	import SetupApprovalHierarchy from './setup/SetupApprovalHierarchy.svelte';
+	import SetupResetPassword from './setup/SetupResetPassword.svelte';
+	import KonfigurasiSetupHub from './setup/KonfigurasiSetupHub.svelte';
 	import harvestLogo from '$lib/assets/HarvestCloud512.png';
 	import {
 		Menu,
@@ -99,6 +105,7 @@
 	let showGlobalSearchResults = $state(false);
 	let userDropdownOpen = $state(false);
 	let showProfileModal = $state(false);
+	let resetPasswordPrefillUser = $state('');
 	let expandedFolders = $state<Record<string, boolean>>({
 		'Transaction': true,
 		'Periodic': false,
@@ -108,7 +115,7 @@
 		'HCM Data': false,
 		'Master Data': false,
 		'Data Integrations': false,
-		'Konfigurasi Setup': false
+		'Konfigurasi Setup': true
 	});
 
 	function toggleFolder(label: string) {
@@ -483,9 +490,26 @@
 				</div>
 			</div>
 
-			<!-- Dynamic Content: Dashboard or Interactive Grid -->
+			<!-- Dynamic Content: Dashboard, Konfigurasi Setup, or Interactive Grid -->
 			{#if selectedNode.label === 'Dashboard'}
 				<PimsDashboard onSelectMenu={handleSelectMenuByLabel} />
+			{:else if selectedNode.label === 'Konfigurasi Setup'}
+				<KonfigurasiSetupHub onSelectSubmenu={handleSelectMenuByLabel} />
+			{:else if selectedNode.label === 'SETUP Informasi User'}
+				<SetupUserInformations
+					onNavigateResetPassword={(nik) => {
+						resetPasswordPrefillUser = nik;
+						handleSelectMenuByLabel('Reset Password');
+					}}
+				/>
+			{:else if selectedNode.label === 'SETUP Menu User'}
+				<SetupUserMenus />
+			{:else if selectedNode.label === 'SETUP Akses Halaman'}
+				<SetupRoleManagement />
+			{:else if selectedNode.label === 'SETUP Approval Hierarchy'}
+				<SetupApprovalHierarchy />
+			{:else if selectedNode.label === 'Reset Password'}
+				<SetupResetPassword initialUsername={resetPasswordPrefillUser} />
 			{:else}
 				<PimsGridPage node={selectedNode} />
 			{/if}

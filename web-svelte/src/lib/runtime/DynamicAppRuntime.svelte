@@ -25,6 +25,12 @@
 	import { runActionChain, type ActionStep } from '$lib/runtime/actionRunner';
 	import { catalog } from '$lib/kit/catalog';
 	import { exportBastPdf } from '$lib/utils/pdfExport';
+	import SetupUserInformations from '$lib/pims/setup/SetupUserInformations.svelte';
+	import SetupUserMenus from '$lib/pims/setup/SetupUserMenus.svelte';
+	import SetupRoleManagement from '$lib/pims/setup/SetupRoleManagement.svelte';
+	import SetupApprovalHierarchy from '$lib/pims/setup/SetupApprovalHierarchy.svelte';
+	import SetupResetPassword from '$lib/pims/setup/SetupResetPassword.svelte';
+	import PimsDashboard from '$lib/pims/PimsDashboard.svelte';
 	import {
 		Layers,
 		FileText,
@@ -39,7 +45,7 @@
 	} from 'lucide-svelte';
 
 	let {
-		appSlug = 'bmn-enterprise',
+		appSlug = 'gopimsbase',
 		initialPageSlug = '',
 		onOpenStudio
 	}: {
@@ -96,6 +102,12 @@
 		}
 	});
 
+	$effect(() => {
+		if (appSlug) {
+			loadRuntime();
+		}
+	});
+
 	onMount(() => {
 		loadRuntime();
 	});
@@ -124,6 +136,68 @@
 {#snippet renderComponent(comp: RuntimeComponent)}
 								{#if comp.type === 'interactive_grid'}
 									<InteractiveGrid title={comp.props?.title || comp.name} />
+								{:else if comp.type === 'metric_card'}
+									<div class="rounded-2xl border border-sky-500/30 bg-slate-900/80 p-5 shadow-lg backdrop-blur">
+										<div class="flex items-center justify-between">
+											<span class="text-xs font-semibold text-slate-400">{comp.props?.title || comp.name}</span>
+											<span class="rounded bg-sky-500/10 px-2 py-0.5 text-xs text-sky-400 font-bold border border-sky-500/20">LIVE</span>
+										</div>
+										<div class="mt-2 text-2xl font-black text-slate-100">{comp.props?.value || '761'}</div>
+										{#if comp.props?.subtitle}
+											<div class="mt-1 text-xs text-slate-400">{comp.props.subtitle}</div>
+										{/if}
+									</div>
+								{:else if comp.type === 'chart'}
+									<div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl backdrop-blur">
+										<h3 class="text-sm font-bold text-slate-100 mb-4">{comp.props?.title || comp.name}</h3>
+										<div class="flex items-end gap-3 h-36 pt-4 border-b border-slate-800">
+											<div class="flex-1 flex flex-col items-center gap-1">
+												<div class="w-full bg-sky-500/80 rounded-t h-20 transition-all hover:bg-sky-400"></div>
+												<span class="text-[10px] text-slate-400 font-mono">KYA (285)</span>
+											</div>
+											<div class="flex-1 flex flex-col items-center gap-1">
+												<div class="w-full bg-emerald-500/80 rounded-t h-28 transition-all hover:bg-emerald-400"></div>
+												<span class="text-[10px] text-slate-400 font-mono">SWA (310)</span>
+											</div>
+											<div class="flex-1 flex flex-col items-center gap-1">
+												<div class="w-full bg-amber-500/80 rounded-t h-16 transition-all hover:bg-amber-400"></div>
+												<span class="text-[10px] text-slate-400 font-mono">CPEA (112)</span>
+											</div>
+											<div class="flex-1 flex flex-col items-center gap-1">
+												<div class="w-full bg-purple-500/80 rounded-t h-12 transition-all hover:bg-purple-400"></div>
+												<span class="text-[10px] text-slate-400 font-mono">TMM (54)</span>
+											</div>
+										</div>
+									</div>
+								{:else if comp.type === 'form'}
+									<div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl backdrop-blur">
+										<h3 class="text-sm font-bold text-slate-100 mb-4">{comp.props?.title || comp.name}</h3>
+										<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+											{#if Array.isArray(comp.props?.fields)}
+												{#each comp.props.fields as f}
+													<div class="flex flex-col gap-1.5">
+														<label class="text-xs font-semibold text-slate-300">{f.label || f.name}</label>
+														{#if f.type === 'select'}
+															<select class="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 outline-none focus:border-sky-500">
+																<option value="">-- Pilih {f.label || f.name} --</option>
+															</select>
+														{:else if f.type === 'checkbox'}
+															<div class="flex items-center gap-2 py-2">
+																<input type="checkbox" checked class="h-4 w-4 rounded border-slate-700 bg-slate-950 text-sky-500" />
+																<span class="text-xs text-slate-300">Aktif</span>
+															</div>
+														{:else}
+															<input
+																type={f.type || 'text'}
+																placeholder={f.label || f.name}
+																class="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 outline-none focus:border-sky-500"
+															/>
+														{/if}
+													</div>
+												{/each}
+											{/if}
+										</div>
+									</div>
 								{:else if comp.type === 'kanban_board' || comp.type === 'kanban'}
 									<KanbanBoard title={comp.props?.title || comp.name} />
 								{:else if comp.type === 'shuttle_selector' || comp.type === 'shuttle'}
@@ -356,7 +430,19 @@
 		{:else}
 			<!-- Dynamic Component Renderer by Layout Type -->
 			<div class="flex flex-col gap-6">
-				{#if activePage.layout === 'free' || activePage.components.some((c) => typeof c.props?.left === 'number')}
+				{#if appSlug === 'gopimsbase' && activePage.slug === 'dashboard'}
+					<PimsDashboard />
+				{:else if appSlug === 'gopimsbase' && activePage.slug === 'setup-user-informations'}
+					<SetupUserInformations />
+				{:else if appSlug === 'gopimsbase' && activePage.slug === 'setup-user-menus'}
+					<SetupUserMenus />
+				{:else if appSlug === 'gopimsbase' && activePage.slug === 'role-management'}
+					<SetupRoleManagement />
+				{:else if appSlug === 'gopimsbase' && activePage.slug === 'approval-hierarchy'}
+					<SetupApprovalHierarchy />
+				{:else if appSlug === 'gopimsbase' && activePage.slug === 'reset-password'}
+					<SetupResetPassword />
+				{:else if activePage.layout === 'free' || activePage.components.some((c) => typeof c.props?.left === 'number')}
 					<!-- Visual Basic Freeform Canvas Layout -->
 					<div
 						class="relative w-full min-h-[640px] rounded-2xl border border-slate-800/80 bg-slate-950/40 p-4 shadow-2xl backdrop-blur overflow-auto"

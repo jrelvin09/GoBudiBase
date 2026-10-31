@@ -154,6 +154,14 @@
 		loadApp();
 	});
 
+	$effect(() => {
+		if (appSlug) {
+			activePageIndex = 0;
+			selectedComponentId = null;
+			loadApp();
+		}
+	});
+
 	const activePage = $derived<RuntimePage | null>(
 		runtimeApp?.pages?.[activePageIndex] || null
 	);
@@ -1297,6 +1305,74 @@
 												<div class="flex items-center justify-between rounded bg-slate-950 border border-slate-800 p-2 text-xs text-slate-300 font-mono">
 													<span>[Lookup Dialog Foreign Key]</span>
 													<span class="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] text-cyan-400 font-bold">ðŸ” Cari</span>
+												</div>
+											{:else if comp.type === 'metric_card'}
+												<div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-sky-500/30">
+													<div>
+														<span class="text-[10px] font-semibold text-slate-400 block">{comp.props?.title || comp.name}</span>
+														<span class="text-xl font-black text-sky-400">{comp.props?.value || '761'}</span>
+														<span class="text-[9px] text-slate-500 block">{comp.props?.subtitle || ''}</span>
+													</div>
+													<div class="h-9 w-9 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 font-bold text-base">
+														📊
+													</div>
+												</div>
+											{:else if comp.type === 'chart'}
+												<div class="flex flex-col gap-1.5 p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+													<div class="flex items-center justify-between text-[11px]">
+														<span class="font-bold text-slate-200">📈 {comp.props?.title || comp.name}</span>
+														<span class="font-mono text-[9px] text-sky-400">{comp.props?.chartType || 'Bar'} Chart</span>
+													</div>
+													<div class="flex items-end gap-2 h-14 pt-2 border-b border-slate-800">
+														<div class="flex-1 bg-sky-600/70 h-9 rounded-t"></div>
+														<div class="flex-1 bg-emerald-600/70 h-12 rounded-t"></div>
+														<div class="flex-1 bg-amber-600/70 h-7 rounded-t"></div>
+														<div class="flex-1 bg-purple-600/70 h-11 rounded-t"></div>
+													</div>
+													<div class="flex justify-between text-[8px] text-slate-500 font-mono">
+														<span>KYA</span><span>SWA</span><span>CPEA</span><span>TMM</span>
+													</div>
+												</div>
+											{:else if comp.type === 'form'}
+												<div class="flex flex-col gap-2 p-3 rounded-xl bg-slate-900 border border-slate-800">
+													<div class="flex items-center justify-between text-[11px] border-b border-slate-800 pb-1.5">
+														<span class="font-bold text-slate-200">📝 {comp.props?.title || comp.name}</span>
+														<span class="text-[9px] font-mono text-emerald-400 uppercase">Oracle APEX Form</span>
+													</div>
+													{#if Array.isArray(comp.props?.fields) && comp.props.fields.length > 0}
+														<div class="grid grid-cols-2 gap-2">
+															{#each comp.props.fields.slice(0, 4) as f}
+																<div class="flex flex-col gap-0.5">
+																	<span class="text-[9px] font-medium text-slate-400">{f.label || f.name}</span>
+																	<div class="h-6 rounded bg-slate-950 border border-slate-800 px-2 flex items-center text-[10px] text-slate-300 font-mono truncate">
+																		{f.name}
+																	</div>
+																</div>
+															{/each}
+														</div>
+													{:else}
+														<div class="h-10 rounded bg-slate-950 border border-slate-800 flex items-center justify-center text-[10px] text-slate-500 font-mono">
+															[ Form Region Fields ]
+														</div>
+													{/if}
+												</div>
+											{:else if comp.type === 'pivot_matrix'}
+												<div class="flex flex-col gap-1.5 p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+													<div class="flex items-center justify-between text-[11px]">
+														<span class="font-bold text-slate-200">🔲 {comp.props?.title || comp.name}</span>
+														<span class="font-mono text-[9px] text-purple-400">Pivot Cross-Tab Matrix</span>
+													</div>
+													<div class="grid grid-cols-3 gap-1 text-[9px] font-mono text-center">
+														<div class="bg-slate-950 border border-slate-800 p-1 text-slate-400">Dimensi</div>
+														<div class="bg-purple-950/40 border border-purple-800/40 p-1 text-purple-300">Aktif (A)</div>
+														<div class="bg-slate-950 border border-slate-800 p-1 text-slate-400">Total</div>
+													</div>
+												</div>
+											{:else if comp.type === 'kanban_board'}
+												<div class="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-slate-900 border border-slate-800">
+													<div class="rounded bg-slate-950 border border-slate-800 p-1.5 text-[9px] text-slate-400 text-center">Level 1 (Review)</div>
+													<div class="rounded bg-slate-950 border border-purple-900/50 p-1.5 text-[9px] text-purple-300 text-center">Level 2 (Verify)</div>
+													<div class="rounded bg-slate-950 border border-emerald-900/50 p-1.5 text-[9px] text-emerald-300 text-center">Level 3 (Approved)</div>
 												</div>
 											{:else if comp.type === 'button' || comp.type === 'kit:button'}
 												<div class="flex items-center py-1">
