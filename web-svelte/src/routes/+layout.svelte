@@ -1,9 +1,21 @@
 <script lang="ts">
 	import '../app.css';
+	import { onMount } from 'svelte';
 	import type { LayoutProps } from './$types';
 	import { Database, Cpu, ShieldCheck, Zap } from 'lucide-svelte';
 
 	let { children }: LayoutProps = $props();
+
+	onMount(() => {
+		const preloader = document.getElementById('global-initial-preloader');
+		if (preloader) {
+			preloader.style.transition = 'opacity 0.35s ease-out';
+			preloader.style.opacity = '0';
+			setTimeout(() => {
+				preloader.remove();
+			}, 350);
+		}
+	});
 </script>
 
 <svelte:head>

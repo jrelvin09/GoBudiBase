@@ -1,12 +1,115 @@
 <!doctype html>
-<html lang="en">
+<html lang="id" style="background-color: #020617; color: #f8fafc;">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<title>GoBudiBase Enterprise</title>
 		%sveltekit.head%
+		<style>
+			/* Instant Inline Zero-Latency Preloader */
+			html, body {
+				margin: 0;
+				padding: 0;
+				background-color: #020617;
+				color: #f8fafc;
+				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+				height: 100%;
+				width: 100%;
+			}
+			#global-initial-preloader {
+				position: fixed;
+				inset: 0;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+				z-index: 999999;
+				gap: 1.25rem;
+			}
+			.preloader-emblem {
+				width: 3.5rem;
+				height: 3.5rem;
+				border-radius: 1rem;
+				background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-weight: 900;
+				font-size: 1.25rem;
+				color: #ffffff;
+				box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.35);
+				animation: emblemPulse 2s ease-in-out infinite;
+			}
+			.preloader-spinner-wrapper {
+				position: relative;
+				width: 2.75rem;
+				height: 2.75rem;
+			}
+			.preloader-spinner-ring {
+				box-sizing: border-box;
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				border: 3px solid rgba(51, 65, 85, 0.4);
+				border-top-color: #10b981;
+				border-radius: 50%;
+				animation: spin 0.85s linear infinite;
+			}
+			.preloader-title {
+				font-size: 1.1rem;
+				font-weight: 800;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				color: #f8fafc;
+				margin: 0;
+			}
+			.preloader-subtext {
+				font-size: 0.75rem;
+				color: #94a3b8;
+				margin: 0;
+				display: flex;
+				align-items: center;
+				gap: 0.35rem;
+			}
+			.preloader-badge {
+				display: inline-block;
+				padding: 0.2rem 0.5rem;
+				background: rgba(16, 185, 129, 0.1);
+				border: 1px solid rgba(16, 185, 129, 0.25);
+				border-radius: 0.375rem;
+				font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+				font-size: 0.65rem;
+				color: #34d399;
+				letter-spacing: 0.05em;
+			}
+			@keyframes spin {
+				0% { transform: rotate(0deg); }
+				100% { transform: rotate(360deg); }
+			}
+			@keyframes emblemPulse {
+				0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.4)); }
+				50% { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.65)); }
+			}
+		</style>
 	</head>
 	<body data-sveltekit-preload-data="hover">
-		<div style="display: contents">%sveltekit.body%</div>
+		<div style="display: contents">
+			%sveltekit.body%
+			<div id="global-initial-preloader">
+				<div class="preloader-emblem">GB</div>
+				<div class="preloader-spinner-wrapper">
+					<div class="preloader-spinner-ring"></div>
+				</div>
+				<div style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.35rem;">
+					<h1 class="preloader-title">GoBudiBase Enterprise</h1>
+					<p class="preloader-subtext">
+						Memuat Low-Code Engine & Runtime Paritas APEX...
+					</p>
+					<span class="preloader-badge">Go 1.25 Native • PostgreSQL 17 • Zero Docker</span>
+				</div>
+			</div>
+		</div>
 	</body>
 </html>
