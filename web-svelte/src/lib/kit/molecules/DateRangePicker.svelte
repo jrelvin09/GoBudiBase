@@ -67,7 +67,7 @@
 			label="Dari Tanggal"
 			bind:value={startDate}
 			placeholder="Pilih tanggal awal..."
-			max={endDate || undefined}
+			max={endDate || null}
 			onchange={() => onchange?.({ start: startDate, end: endDate })}
 		/>
 		<SimpleDatePicker
@@ -75,7 +75,7 @@
 			label="Sampai Tanggal"
 			bind:value={endDate}
 			placeholder="Pilih tanggal akhir..."
-			min={startDate || undefined}
+			min={startDate || null}
 			onchange={() => onchange?.({ start: startDate, end: endDate })}
 		/>
 	</div>

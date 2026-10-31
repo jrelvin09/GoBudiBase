@@ -236,9 +236,9 @@
 								{:else if comp.type === 'date_range_picker'}
 									<div class="py-2 max-w-md">
 										<DateRangePicker
-											label={comp.props?.title || comp.name || 'Rentang Tanggal'}
-											startDate={comp.props?.startDate ?? null}
-											endDate={comp.props?.endDate ?? null}
+											label={String(comp.props?.title || comp.name || 'Rentang Tanggal')}
+											startDate={comp.props?.startDate ? String(comp.props.startDate) : null}
+											endDate={comp.props?.endDate ? String(comp.props.endDate) : null}
 											onchange={(range) => {
 												if (!comp.props) comp.props = {};
 												comp.props.startDate = range.start;
@@ -249,34 +249,34 @@
 								<!-- Budibase Smart Blocks -->
 								{:else if comp.type === 'data_provider'}
 									<DataProvider
-										title={comp.props?.title || comp.name}
+										title={String(comp.props?.title || comp.name || 'Data Provider')}
 										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
 									/>
 								{:else if comp.type === 'table_block'}
 									<TableBlock
-										title={comp.props?.title || comp.name}
+										title={String(comp.props?.title || comp.name || 'Table Block')}
 										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
 									/>
 								{:else if comp.type === 'form_block'}
 									<FormBlock
-										title={comp.props?.title || comp.name}
+										title={String(comp.props?.title || comp.name || 'Form Block')}
 										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
 										mode={(comp.datasource_config?.mode as any) || (comp.props?.mode as any) || 'create'}
 									/>
 								{:else if comp.type === 'cards_repeater'}
 									<CardsRepeater
-										title={comp.props?.title || comp.name}
+										title={String(comp.props?.title || comp.name || 'Cards Repeater')}
 										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
 									/>
 								{:else if comp.type === 'chart_block'}
 									<ChartBlock
-										title={comp.props?.title || comp.name}
+										title={String(comp.props?.title || comp.name || 'Chart Block')}
 										table={(comp.datasource_config?.table as string) || (comp.props?.table as string) || 'bmn_items'}
 										chartType={(comp.props?.chartType as any) || 'bar'}
 									/>
 								{:else if comp.type === 'container_section'}
 									<ContainerSection
-										title={comp.props?.title || comp.name}
+										title={String(comp.props?.title || comp.name || 'Container Section')}
 									/>
 								{:else if comp.type.startsWith('kit:') || catalog.some(c => c.id === comp.type)}
 									{@const kitId = comp.type.startsWith('kit:') ? comp.type.slice(4) : comp.type}
