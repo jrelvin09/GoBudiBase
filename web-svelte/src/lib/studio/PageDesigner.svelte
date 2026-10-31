@@ -48,8 +48,11 @@
 		Zap,
 		Clock,
 		DollarSign,
-		SquareCheck
+		SquareCheck,
+		Puzzle
 	} from 'lucide-svelte';
+	import { catalog } from '$lib/kit/catalog';
+	import { catalogTitle } from '$lib/kit/catalog-title';
 
 	let {
 		appSlug = 'bmn-enterprise',
@@ -107,7 +110,7 @@
 		activePage?.components?.find((c) => c.id === selectedComponentId) || null
 	);
 
-	type PaletteCategory = 'all' | 'reports' | 'visuals' | 'specialized' | 'forms' | 'containers';
+	type PaletteCategory = 'all' | 'reports' | 'visuals' | 'specialized' | 'forms' | 'containers' | 'uikit';
 	let selectedCategory = $state<PaletteCategory>('all');
 
 	const componentPalette = [
@@ -144,15 +147,27 @@
 		{ category: 'containers', type: 'wizard_progress', name: 'Wizard Step Progress', icon: SquareCheck, desc: 'Indikator langkah bertahap untuk proses bisnis sekuensial' }
 	];
 
+	const uikitPalette = catalog.map((c) => ({
+		category: 'uikit' as const,
+		type: `kit:${c.id}`,
+		name: catalogTitle(c),
+		icon: Puzzle,
+		desc: `[${c.tier.toUpperCase()}] Svelte UI Kit Component (${c.id})`
+	}));
+
+	const allComponents = [...componentPalette, ...uikitPalette];
+
 	const filteredPalette = $derived(
 		selectedCategory === 'all'
 			? componentPalette
+			: selectedCategory === 'uikit'
+			? uikitPalette
 			: componentPalette.filter((c) => c.category === selectedCategory)
 	);
 
 	async function handleAddComponent(compType: string, customName?: string, datasourceConfig?: Record<string, unknown>) {
 		if (!activePage) return;
-		const def = componentPalette.find((c) => c.type === compType);
+		const def = allComponents.find((c) => c.type === compType);
 		const name = customName || def?.name || 'Komponen Baru';
 
 		try {
@@ -163,7 +178,7 @@
 				region: 'main',
 				datasource_type: datasourceConfig ? 'table' : 'rpc',
 				datasource_config: datasourceConfig || {},
-				props: { title: name }
+				props: { title: name, catalogId: compType.replace('kit:', '') }
 			});
 			await loadApp();
 		} catch (e) {
@@ -418,6 +433,13 @@
 								class="rounded px-2 py-0.5 transition {selectedCategory === 'containers' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}"
 							>
 								Containers
+							</button>
+							<button
+								type="button"
+								onclick={() => (selectedCategory = 'uikit')}
+								class="rounded px-2.5 py-0.5 transition font-semibold {selectedCategory === 'uikit' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-800 text-indigo-400 hover:text-indigo-200'}"
+							>
+								UI Kit (71)
 							</button>
 						</div>
 
@@ -681,6 +703,18 @@
 									{:else if comp.type === 'signature_bast'}
 										<div class="h-16 rounded bg-slate-900 border border-slate-800 flex items-center justify-center text-[11px] font-mono text-slate-500">
 											[ SignaturePad & BAST PDF Export Slip ]
+										</div>
+									{:else if comp.type.startsWith('kit:')}
+										<div class="flex flex-col gap-2">
+											<div class="flex items-center justify-between text-xs">
+												<span class="font-semibold text-indigo-300">UI Kit Parity Component</span>
+												<span class="rounded bg-indigo-500/20 px-2 py-0.5 font-mono text-[10px] text-indigo-300 uppercase">
+													{comp.type.replace('kit:', '')}
+												</span>
+											</div>
+											<div class="h-16 rounded bg-slate-900 border border-indigo-900/40 flex items-center justify-center text-[11px] font-mono text-indigo-300">
+												[ {comp.name} • Svelte UI Kit Parity Component ]
+											</div>
 										</div>
 									{:else}
 										<div class="h-16 rounded bg-slate-900 border border-slate-800 flex items-center justify-center text-[11px] font-mono text-slate-500">

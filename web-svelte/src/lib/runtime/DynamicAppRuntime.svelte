@@ -13,6 +13,7 @@
 	import KanbanBoard from '$lib/apex/KanbanBoard.svelte';
 	import ShuttleSelector from '$lib/apex/ShuttleSelector.svelte';
 	import PopupLovDemo from '$lib/apex/PopupLovDemo.svelte';
+	import { catalog } from '$lib/kit/catalog';
 	import { exportBastPdf } from '$lib/utils/pdfExport';
 	import {
 		Layers,
@@ -205,6 +206,41 @@
 									<FacetedSearch />
 								{:else if comp.type === 'dynamic_actions'}
 									<DynamicActions />
+								{:else if comp.type.startsWith('kit:') || catalog.some(c => c.id === comp.type)}
+									{@const kitId = comp.type.startsWith('kit:') ? comp.type.slice(4) : comp.type}
+									{@const entry = catalog.find((c) => c.id === kitId)}
+									<div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl backdrop-blur">
+										<div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+											<div class="flex items-center gap-2">
+												<span class="rounded bg-indigo-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-indigo-400 border border-indigo-500/20 uppercase">
+													{entry?.tier || 'UI KIT'}
+												</span>
+												<h3 class="text-xs font-bold text-slate-100">{comp.name}</h3>
+											</div>
+											<span class="font-mono text-[10px] text-slate-500">{kitId}</span>
+										</div>
+										{#if entry?.load}
+											{#await entry.load()}
+												<div class="flex h-28 items-center justify-center text-xs text-slate-500">
+													<div class="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent mr-2"></div>
+													<span>Memuat {comp.name}...</span>
+												</div>
+											{:then loaded}
+												{@const DemoComp = loaded.default}
+												<div class="kit-demo-container">
+													<DemoComp />
+												</div>
+											{:catch err}
+												<div class="rounded-lg border border-rose-500/30 bg-rose-950/20 p-3 text-xs text-rose-300">
+													Gagal memuat komponen: {err.message}
+												</div>
+											{/await}
+										{:else}
+											<div class="text-xs text-slate-400">
+												[ Region Komponen: {comp.name} ]
+											</div>
+										{/if}
+									</div>
 								{/if}
 							</div>
 						{/each}
@@ -308,6 +344,41 @@
 												<p>Goresan tanda tangan digital pada kanvas ini disematkan secara legal ke dalam slip BAST 1-halaman format A4 formal dengan cap watermark tanggal sistem dan checksum verifikasi.</p>
 											</div>
 										</div>
+									</div>
+								{:else if comp.type.startsWith('kit:') || catalog.some(c => c.id === comp.type)}
+									{@const kitId = comp.type.startsWith('kit:') ? comp.type.slice(4) : comp.type}
+									{@const entry = catalog.find((c) => c.id === kitId)}
+									<div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl backdrop-blur">
+										<div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-5">
+											<div class="flex items-center gap-2.5">
+												<span class="rounded bg-indigo-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-indigo-400 border border-indigo-500/20 uppercase">
+													{entry?.tier || 'UI KIT'}
+												</span>
+												<h3 class="text-sm font-bold text-slate-100">{comp.name}</h3>
+											</div>
+											<span class="font-mono text-[10px] text-slate-500">{kitId}</span>
+										</div>
+										{#if entry?.load}
+											{#await entry.load()}
+												<div class="flex h-32 items-center justify-center text-xs text-slate-500">
+													<div class="h-5 w-5 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent mr-2"></div>
+													<span>Memuat komponen {comp.name}...</span>
+												</div>
+											{:then loaded}
+												{@const DemoComp = loaded.default}
+												<div class="kit-demo-container">
+													<DemoComp />
+												</div>
+											{:catch err}
+												<div class="rounded-xl border border-rose-500/30 bg-rose-950/20 p-4 text-xs text-rose-300">
+													Gagal memuat komponen: {err.message}
+												</div>
+											{/await}
+										{:else}
+											<div class="text-xs text-slate-400">
+												[ Region Komponen: {comp.name} ]
+											</div>
+										{/if}
 									</div>
 								{/if}
 							</div>

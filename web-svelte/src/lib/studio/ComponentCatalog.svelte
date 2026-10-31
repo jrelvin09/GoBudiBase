@@ -5,6 +5,13 @@
 	import { getLocale, setLocale, t } from '$lib/i18n/index.svelte';
 	import { getDensity, getMode, isDensity, isMode, setDensity, setMode } from '$lib/theme/theme.svelte';
 	import {
+		fetchAppsList,
+		fetchRuntimeApp,
+		createComponent,
+		type AppListItem,
+		type RuntimePage
+	} from '$lib/api/builderClient';
+	import {
 		Search,
 		Layers,
 		Box,
@@ -14,8 +21,20 @@
 		ExternalLink,
 		CheckCircle2,
 		Sparkles,
-		Eye
+		Eye,
+		Plus,
+		X,
+		ArrowRight,
+		Check
 	} from 'lucide-svelte';
+
+	let {
+		onOpenDesigner,
+		onOpenRuntime
+	}: {
+		onOpenDesigner?: (appSlug: string) => void;
+		onOpenRuntime?: (appSlug: string) => void;
+	} = $props();
 
 	const TIERS = ['all', 'atom', 'molecule', 'organism', 'region'] as const;
 	type SelectedTier = typeof TIERS[number];
@@ -23,6 +42,68 @@
 	let selectedTier = $state<SelectedTier>('all');
 	let searchQuery = $state('');
 	let selectedId = $state<string>('button');
+
+	// Modal State for "Tambah ke Page"
+	let showAddToPageModal = $state(false);
+	let appsList = $state<AppListItem[]>([]);
+	let selectedAppSlug = $state('bmn-enterprise');
+	let availablePages = $state<RuntimePage[]>([]);
+	let selectedPageId = $state<number | null>(null);
+	let isAddingToPage = $state(false);
+	let addSuccessMessage = $state('');
+
+	async function openAddToPageModal() {
+		showAddToPageModal = true;
+		addSuccessMessage = '';
+		try {
+			if (appsList.length === 0) {
+				appsList = await fetchAppsList();
+			}
+			await loadPagesForApp(selectedAppSlug);
+		} catch (e) {
+			console.error('Failed to prepare add to page modal:', e);
+		}
+	}
+
+	async function loadPagesForApp(slug: string) {
+		selectedAppSlug = slug;
+		try {
+			const runtime = await fetchRuntimeApp(slug);
+			availablePages = runtime.pages || [];
+			if (availablePages.length > 0) {
+				selectedPageId = availablePages[0].id;
+			}
+		} catch (e) {
+			console.error('Failed to load pages for app:', e);
+		}
+	}
+
+	async function handleConfirmAddToPage() {
+		if (!selectedPageId || !activeEntry) return;
+		isAddingToPage = true;
+		try {
+			const targetPage = availablePages.find((p) => p.id === selectedPageId);
+			const title = catalogTitle(activeEntry);
+			await createComponent({
+				page_id: selectedPageId,
+				name: title,
+				type: `kit:${activeEntry.id}`,
+				region: 'main',
+				datasource_type: 'none',
+				datasource_config: {},
+				props: {
+					catalogId: activeEntry.id,
+					tier: activeEntry.tier
+				}
+			});
+			addSuccessMessage = `Komponen "${title}" (${activeEntry.id}) berhasil disematkan ke halaman "${targetPage?.title || 'Page'}"!`;
+		} catch (e: any) {
+			console.error('Failed to add component to page:', e);
+			alert('Gagal menyematkan komponen: ' + (e.message || e));
+		} finally {
+			isAddingToPage = false;
+		}
+	}
 
 	const tierLabels: Record<string, { label: string; count: number }> = $derived({
 		all: { label: 'Semua Komponen', count: catalog.length },
@@ -169,10 +250,21 @@
 						</p>
 					</div>
 
-					<span class="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
-						<Eye class="h-3.5 w-3.5" />
-						<span>Live Preview</span>
-					</span>
+					<div class="flex items-center gap-2">
+						<button
+							type="button"
+							onclick={openAddToPageModal}
+							class="flex items-center gap-1.5 text-xs text-white font-semibold bg-emerald-600 hover:bg-emerald-500 px-3.5 py-1.5 rounded-xl shadow-lg shadow-emerald-600/30 transition cursor-pointer"
+						>
+							<Plus class="h-4 w-4" />
+							<span>Taruh di Page</span>
+						</button>
+
+						<span class="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+							<Eye class="h-3.5 w-3.5" />
+							<span>Live Preview</span>
+						</span>
+					</div>
 				</div>
 
 				<!-- Demo Interactive Canvas -->
@@ -206,4 +298,147 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Modal Taruh Komponen ke Page -->
+	{#if showAddToPageModal && activeEntry}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+			<div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+				<div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+					<div class="flex items-center gap-2">
+						<div class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white font-bold text-xs">
+							+
+						</div>
+						<h3 class="text-sm font-bold text-slate-100">
+							Taruh Komponen ke Page
+						</h3>
+					</div>
+					<button
+						type="button"
+						onclick={() => (showAddToPageModal = false)}
+						class="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+					>
+						<X class="h-4 w-4" />
+					</button>
+				</div>
+
+				{#if addSuccessMessage}
+					<div class="flex flex-col gap-3 py-3">
+						<div class="rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-4 text-xs text-emerald-300 flex items-start gap-2.5">
+							<CheckCircle2 class="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+							<span>{addSuccessMessage}</span>
+						</div>
+
+						<div class="flex flex-wrap items-center justify-end gap-2 mt-2">
+							{#if onOpenDesigner}
+								<button
+									type="button"
+									onclick={() => {
+										showAddToPageModal = false;
+										onOpenDesigner(selectedAppSlug);
+									}}
+									class="flex items-center gap-1.5 rounded-xl bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition"
+								>
+									<span>Buka Page Designer</span>
+									<ArrowRight class="h-3.5 w-3.5" />
+								</button>
+							{/if}
+							{#if onOpenRuntime}
+								<button
+									type="button"
+									onclick={() => {
+										showAddToPageModal = false;
+										onOpenRuntime(selectedAppSlug);
+									}}
+									class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-md hover:bg-emerald-500 transition"
+								>
+									<span>Buka Runtime Page</span>
+									<ArrowRight class="h-3.5 w-3.5" />
+								</button>
+							{/if}
+							<button
+								type="button"
+								onclick={() => (showAddToPageModal = false)}
+								class="rounded-xl border border-slate-700 px-3.5 py-2 text-xs text-slate-400 hover:text-slate-200 transition"
+							>
+								Tutup
+							</button>
+						</div>
+					</div>
+				{:else}
+					<div class="flex flex-col gap-4 text-xs">
+						<!-- Info Component -->
+						<div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+							<div class="flex items-center justify-between">
+								<span class="text-slate-400">Komponen Dipilih:</span>
+								<span class="rounded bg-indigo-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-indigo-300 uppercase">
+									{activeEntry.tier}
+								</span>
+							</div>
+							<p class="font-bold text-slate-100 text-sm mt-1">{catalogTitle(activeEntry)}</p>
+							<p class="font-mono text-[10px] text-slate-500">ID: {activeEntry.id}</p>
+						</div>
+
+						<!-- App Selector -->
+						<div class="flex flex-col gap-1.5">
+							<label for="modal-app-select" class="font-semibold text-slate-300">Pilih Aplikasi Tujuan:</label>
+							<select
+								id="modal-app-select"
+								class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-emerald-500 focus:outline-none cursor-pointer"
+								value={selectedAppSlug}
+								onchange={(e) => loadPagesForApp(e.currentTarget.value)}
+							>
+								{#each appsList as appItem}
+									<option value={appItem.slug}>{appItem.name} ({appItem.slug})</option>
+								{/each}
+								{#if appsList.length === 0}
+									<option value="bmn-enterprise">BMN Enterprise System (bmn-enterprise)</option>
+								{/if}
+							</select>
+						</div>
+
+						<!-- Page Selector -->
+						<div class="flex flex-col gap-1.5">
+							<label for="modal-page-select" class="font-semibold text-slate-300">Pilih Halaman Target:</label>
+							<select
+								id="modal-page-select"
+								class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-slate-200 focus:border-emerald-500 focus:outline-none cursor-pointer"
+								bind:value={selectedPageId}
+							>
+								{#each availablePages as pg}
+									<option value={pg.id}>Page {pg.order_num}: {pg.title} (/{pg.slug})</option>
+								{/each}
+								{#if availablePages.length === 0}
+									<option value="" disabled>Tidak ada halaman ditemukan</option>
+								{/if}
+							</select>
+						</div>
+
+						<div class="flex items-center justify-end gap-2 pt-4 border-t border-slate-800 mt-2">
+							<button
+								type="button"
+								onclick={() => (showAddToPageModal = false)}
+								class="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 transition"
+							>
+								Batal
+							</button>
+							<button
+								type="button"
+								disabled={isAddingToPage || !selectedPageId}
+								onclick={handleConfirmAddToPage}
+								class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500 transition disabled:opacity-50 cursor-pointer"
+							>
+								{#if isAddingToPage}
+									<div class="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+									<span>Menyimpan...</span>
+								{:else}
+									<Plus class="h-3.5 w-3.5" />
+									<span>Pasang Komponen Ini</span>
+								{/if}
+							</button>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+	{/if}
 </div>

@@ -107,7 +107,16 @@
 		{:else if currentMode === 'sql_studio'}
 			<SqlStudio />
 		{:else if currentMode === 'catalog'}
-			<ComponentCatalog />
+			<ComponentCatalog
+				onOpenDesigner={(slug) => {
+					activeAppSlug = slug;
+					currentMode = 'studio_designer';
+				}}
+				onOpenRuntime={(slug) => {
+					activeAppSlug = slug;
+					currentMode = 'runtime';
+				}}
+			/>
 		{/if}
 	</div>
 </div>
