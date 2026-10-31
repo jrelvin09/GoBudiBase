@@ -66,7 +66,9 @@
 		Tag,
 		AlertTriangle,
 		BarChart3,
-		Blocks
+		Blocks,
+		Upload,
+		Sparkles
 	} from 'lucide-svelte';
 	import { catalog } from '$lib/kit/catalog';
 	import { catalogTitle } from '$lib/kit/catalog-title';
@@ -165,10 +167,13 @@
 		// Standard RAD Atoms & Inputs
 		{ type: 'button', name: 'CommandButton', icon: MousePointerClick, group: 'Standard Controls', desc: 'Tombol aksi interaktif dengan caption & handler klik' },
 		{ type: 'input', name: 'TextBox', icon: Type, group: 'Standard Controls', desc: 'Kotak input teks pengguna dengan label & placeholder' },
+		{ type: 'textarea', name: 'TextArea (Multiline)', icon: FileText, group: 'Standard Controls', desc: 'Kotak input teks multi-baris untuk deskripsi/catatan' },
+		{ type: 'select', name: 'Dropdown Select', icon: ChevronDown, group: 'Standard Controls', desc: 'Pemilih opsi dropdown tunggal' },
 		{ type: 'label', name: 'Label', icon: Type, group: 'Standard Controls', desc: 'Teks statis judul atau keterangan form' },
 		{ type: 'badge', name: 'StatusBadge', icon: Tag, group: 'Standard Controls', desc: 'Badge penanda status warna-warni' },
 		{ type: 'checkbox', name: 'CheckBox', icon: CheckSquare, group: 'Standard Controls', desc: 'Kotak centang boolean Ya/Tidak' },
 		{ type: 'switch', name: 'ToggleSwitch', icon: ToggleLeft, group: 'Standard Controls', desc: 'Saklar On/Off interaktif' },
+		{ type: 'file_upload', name: 'File Upload / Attachment', icon: Upload, group: 'Standard Controls', desc: 'Unggah file atau lampiran dokumen' },
 		{ type: 'card', name: 'Frame / Card', icon: Square, group: 'Standard Controls', desc: 'Wadah panel kartu pengelompok elemen form' },
 		{ type: 'alert', name: 'AlertCallout', icon: AlertTriangle, group: 'Standard Controls', desc: 'Kotak peringatan pesan atau status' },
 		{ type: 'date_picker', name: 'DatePicker', icon: Calendar, group: 'Standard Controls', desc: 'Pemilih tanggal tunggal sederhana (Single Date Input)' },
@@ -208,9 +213,7 @@
 		desc: `[${c.tier.toUpperCase()}] Svelte Kit Component (${c.id})`
 	}));
 
-	const allAvailableControls = [...standardControls, ...uikitControls];
-
-	// Budibase Blocks â€” high-level composed blocks (Fase 2 runtime)
+	// Budibase Blocks
 	const budibaseBlocks = [
 		{ type: 'data_provider',    name: 'Data Provider',    icon: Database,    group: 'Blocks', desc: 'Fetch data dari tabel/RPC, expose ke child components' },
 		{ type: 'table_block',      name: 'Table Block',      icon: Grid3X3,     group: 'Blocks', desc: 'Auto-generate tabel dari schema dengan search, sort, paginate' },
@@ -219,6 +222,8 @@
 		{ type: 'chart_block',      name: 'Chart Block',      icon: BarChart3,   group: 'Blocks', desc: 'Bar/Line/Pie/Donut chart dari data binding' },
 		{ type: 'container_section',name: 'Container/Section',icon: Square,      group: 'Blocks', desc: 'Layout container dengan padding, background, border' },
 	];
+
+	const allAvailableControls = [...standardControls, ...budibaseBlocks, ...uikitControls];
 
 	const filteredStandard = $derived(
 		standardControls.filter((c) =>
@@ -247,9 +252,16 @@
 			comp.type.includes('switch') || comp.type.includes('checkbox') ? 180 :
 			comp.type.includes('grid') || comp.type.includes('table') ? 660 :
 			comp.type.includes('kanban') ? 660 :
+			comp.type.includes('cards') ? 640 :
 			comp.type.includes('chart') ? 500 :
+			comp.type.includes('form') ? 520 :
+			comp.type.includes('container') ? 660 :
+			comp.type.includes('data_provider') ? 480 :
 			comp.type.includes('date_range') || comp.type.includes('date-picker-item') ? 420 :
 			comp.type.includes('date') ? 260 :
+			comp.type.includes('textarea') ? 360 :
+			comp.type.includes('select') ? 280 :
+			comp.type.includes('file') ? 340 :
 			comp.type.includes('input') || comp.type.includes('text-item') ? 320 : 360
 		);
 		const height = typeof comp.props?.height === 'number' ? comp.props.height : (
@@ -259,7 +271,14 @@
 			comp.type.includes('date') ? 70 :
 			comp.type.includes('grid') || comp.type.includes('table') ? 240 :
 			comp.type.includes('kanban') ? 220 :
-			comp.type.includes('chart') ? 220 : 84
+			comp.type.includes('cards') ? 260 :
+			comp.type.includes('chart') ? 220 :
+			comp.type.includes('form') ? 340 :
+			comp.type.includes('container') ? 240 :
+			comp.type.includes('data_provider') ? 160 :
+			comp.type.includes('textarea') ? 110 :
+			comp.type.includes('select') ? 70 :
+			comp.type.includes('file') ? 120 : 84
 		);
 		return { left, top, width, height };
 	}
@@ -1076,7 +1095,43 @@
 								</p>
 
 								<!-- Quick Add Shortcuts on Empty Form -->
-								<div class="mt-4 flex flex-wrap justify-center gap-1.5 max-w-md">
+								<div class="mt-4 flex flex-wrap justify-center gap-1.5 max-w-lg">
+									<button
+										type="button"
+										onclick={() => { wizardMode = 'auto-crud'; showAddPageModal = true; }}
+										class="rounded bg-purple-600/30 border border-purple-500/50 px-2.5 py-1 text-[11px] font-bold text-purple-200 hover:bg-purple-600 hover:text-white transition shadow-sm flex items-center gap-1"
+									>
+										<Sparkles class="h-3 w-3 text-purple-300" />
+										<span>⚡ Auto-CRUD Wizard</span>
+									</button>
+									<button
+										type="button"
+										onclick={() => handleAddComponent('table_block', 'Table Block')}
+										class="rounded bg-slate-800 border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-200 hover:border-purple-500 hover:bg-purple-950/30 hover:text-purple-300 transition"
+									>
+										+ Table Block
+									</button>
+									<button
+										type="button"
+										onclick={() => handleAddComponent('form_block', 'Form Block')}
+										class="rounded bg-slate-800 border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-200 hover:border-purple-500 hover:bg-purple-950/30 hover:text-purple-300 transition"
+									>
+										+ Form Block
+									</button>
+									<button
+										type="button"
+										onclick={() => handleAddComponent('cards_repeater', 'Cards Repeater')}
+										class="rounded bg-slate-800 border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-200 hover:border-purple-500 hover:bg-purple-950/30 hover:text-purple-300 transition"
+									>
+										+ Cards Repeater
+									</button>
+									<button
+										type="button"
+										onclick={() => handleAddComponent('chart_block', 'Chart Analytics')}
+										class="rounded bg-slate-800 border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-200 hover:border-purple-500 hover:bg-purple-950/30 hover:text-purple-300 transition"
+									>
+										+ Chart Block
+									</button>
 									<button
 										type="button"
 										onclick={() => handleAddComponent('interactive_grid', 'Data Grid Utama')}
@@ -1260,6 +1315,29 @@
 													<span class="text-[11px] font-semibold text-slate-300">{comp.props?.title || comp.name}</span>
 													<div class="h-7 rounded bg-slate-950 border border-slate-800 px-2.5 flex items-center text-xs text-slate-400 font-mono">
 														{comp.props?.placeholder || 'Ketik nilai...'}
+													</div>
+												</div>
+											{:else if comp.type === 'textarea'}
+												<div class="flex flex-col gap-1 max-w-sm py-1">
+													<span class="text-[11px] font-semibold text-slate-300">{comp.props?.title || comp.name || 'Text Area'}</span>
+													<div class="h-16 rounded-lg bg-slate-950 border border-slate-800 p-2 text-xs text-slate-400 font-mono">
+														{comp.props?.placeholder || 'Ketik teks multi-baris di sini...'}
+													</div>
+												</div>
+											{:else if comp.type === 'select'}
+												<div class="flex flex-col gap-1 max-w-sm py-1">
+													<span class="text-[11px] font-semibold text-slate-300">{comp.props?.title || comp.name || 'Dropdown Select'}</span>
+													<div class="h-8 rounded-lg bg-slate-950 border border-slate-800 px-3 flex items-center justify-between text-xs text-slate-300">
+														<span>{comp.props?.placeholder || '-- Pilih Opsi --'}</span>
+														<ChevronDown class="h-3.5 w-3.5 text-slate-400" />
+													</div>
+												</div>
+											{:else if comp.type === 'file_upload'}
+												<div class="flex flex-col gap-1 max-w-sm py-1">
+													<span class="text-[11px] font-semibold text-slate-300">{comp.props?.title || comp.name || 'File Upload'}</span>
+													<div class="h-16 rounded-lg bg-slate-950/60 border border-dashed border-slate-700 flex flex-col items-center justify-center text-xs text-slate-400 gap-1">
+														<Upload class="h-4 w-4 text-purple-400" />
+														<span class="text-[10px]">Tarik file ke sini atau klik u/ upload</span>
 													</div>
 												</div>
 											{:else if comp.type === 'label' || comp.type === 'kit:label' || comp.type === 'kit:typography'}
@@ -1822,6 +1900,91 @@
 							</tr>
 						{/snippet}
 
+						{#snippet propTable()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Table', desc: 'Tabel database PostgreSQL target untuk data binding komponen ini.' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Table
+								</td>
+								<td class="px-2 py-1">
+									<select
+										value={(selectedComponent.datasource_config?.table as string) || (selectedComponent.props?.table as string) || ''}
+										onchange={(e) => {
+											const val = (e.target as HTMLSelectElement).value;
+											if (!selectedComponent.datasource_config) selectedComponent.datasource_config = {};
+											selectedComponent.datasource_config.table = val;
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.table = val;
+											handleSaveComponentProperty();
+										}}
+										class="w-full bg-transparent text-emerald-400 font-mono text-xs outline-none cursor-pointer"
+									>
+										<option value="" class="bg-slate-900 text-slate-400">-- Pilih Tabel --</option>
+										{#each schemaTables as tbl}
+											<option value={tbl.name} class="bg-slate-900 text-slate-200">{tbl.schema}.{tbl.name}</option>
+										{/each}
+									</select>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propMode()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'Mode', desc: 'Mode operasi form: create (tambah record baru) atau edit (perbarui record yang ada).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									Mode
+								</td>
+								<td class="px-2 py-1">
+									<select
+										value={(selectedComponent.datasource_config?.mode as string) || (selectedComponent.props?.mode as string) || 'create'}
+										onchange={(e) => {
+											const val = (e.target as HTMLSelectElement).value;
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.mode = val;
+											if (!selectedComponent.datasource_config) selectedComponent.datasource_config = {};
+											selectedComponent.datasource_config.mode = val;
+											handleSaveComponentProperty();
+										}}
+										class="w-full bg-transparent text-purple-400 font-mono text-xs outline-none cursor-pointer"
+									>
+										<option value="create" class="bg-slate-900 text-slate-200">create (Tambah Baru)</option>
+										<option value="edit" class="bg-slate-900 text-slate-200">edit (Edit Record)</option>
+									</select>
+								</td>
+							</tr>
+						{/snippet}
+
+						{#snippet propChartType()}
+							<tr
+								class="border-b border-slate-800/80 hover:bg-slate-800/40"
+								onclick={() => (activePropertyHelp = { title: 'ChartType', desc: 'Tipe tampilan grafik analitika: bar (batang), donut (lingkaran), atau line (garis tren).' })}
+							>
+								<td class="w-28 bg-slate-950/80 px-2 py-1.5 font-mono text-[11px] text-slate-400 border-r border-slate-800">
+									ChartType
+								</td>
+								<td class="px-2 py-1">
+									<select
+										value={(selectedComponent.props?.chartType as string) || 'bar'}
+										onchange={(e) => {
+											const val = (e.target as HTMLSelectElement).value;
+											if (!selectedComponent.props) selectedComponent.props = {};
+											selectedComponent.props.chartType = val;
+											handleSaveComponentProperty();
+										}}
+										class="w-full bg-transparent text-purple-400 font-mono text-xs outline-none cursor-pointer"
+									>
+										<option value="bar" class="bg-slate-900 text-slate-200">bar (Batang)</option>
+										<option value="donut" class="bg-slate-900 text-slate-200">donut (Lingkaran)</option>
+										<option value="line" class="bg-slate-900 text-slate-200">line (Tren Garis)</option>
+									</select>
+								</td>
+							</tr>
+						{/snippet}
+
 						{#snippet propRegion()}
 							<tr
 								class="border-b border-slate-800/80 hover:bg-slate-800/40"
@@ -1920,6 +2083,15 @@
 									</tr>
 									{#if !collapsedCategories['data']}
 										{@render propDataSource()}
+										{#if selectedComponent.datasource_type === 'table' || ['table_block', 'form_block', 'data_provider', 'cards_repeater', 'chart_block', 'interactive_grid', 'interactive_report'].includes(selectedComponent.type)}
+											{@render propTable()}
+										{/if}
+										{#if selectedComponent.type === 'form_block'}
+											{@render propMode()}
+										{/if}
+										{#if selectedComponent.type === 'chart_block'}
+											{@render propChartType()}
+										{/if}
 									{/if}
 
 									<!-- Category 4: Behavior & Misc -->
@@ -1943,14 +2115,23 @@
 								<tbody>
 									{@render propName()}
 									{@render propCaption()}
+									{#if selectedComponent.type === 'chart_block'}
+										{@render propChartType()}
+									{/if}
 									{@render propDataSource()}
 									{@render propEnabled()}
 									{@render propHeight()}
 									{@render propLeft()}
-									{#if selectedComponent.type === 'input' || selectedComponent.type === 'kit:input' || selectedComponent.type === 'kit:text-item'}
+									{#if selectedComponent.type === 'form_block'}
+										{@render propMode()}
+									{/if}
+									{#if selectedComponent.type === 'input' || selectedComponent.type === 'kit:input' || selectedComponent.type === 'kit:text-item' || selectedComponent.type === 'textarea'}
 										{@render propPlaceholder()}
 									{/if}
 									{@render propRegion()}
+									{#if selectedComponent.datasource_type === 'table' || ['table_block', 'form_block', 'data_provider', 'cards_repeater', 'chart_block', 'interactive_grid', 'interactive_report'].includes(selectedComponent.type)}
+										{@render propTable()}
+									{/if}
 									{@render propTop()}
 									{@render propType()}
 									{#if selectedComponent.type === 'button' || selectedComponent.type === 'kit:button' || selectedComponent.type === 'badge' || selectedComponent.type === 'kit:badge'}

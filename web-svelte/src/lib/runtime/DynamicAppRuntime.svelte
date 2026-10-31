@@ -34,7 +34,8 @@
 		AlertTriangle,
 		Download,
 		CheckCircle2,
-		Sparkles
+		Sparkles,
+		Upload
 	} from 'lucide-svelte';
 
 	let {
@@ -165,6 +166,34 @@
 											placeholder={comp.props?.placeholder || 'Masukkan teks di sini...'}
 											class="rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500"
 										/>
+									</div>
+								{:else if comp.type === 'textarea'}
+									<div class="flex flex-col gap-1.5 max-w-md py-2">
+										<label class="text-xs font-semibold text-slate-300">{comp.props?.title || comp.name || 'Text Area'}</label>
+										<textarea
+											rows="3"
+											placeholder={comp.props?.placeholder || 'Masukkan teks multi-baris di sini...'}
+											class="rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500"
+										></textarea>
+									</div>
+								{:else if comp.type === 'select'}
+									<div class="flex flex-col gap-1.5 max-w-md py-2">
+										<label class="text-xs font-semibold text-slate-300">{comp.props?.title || comp.name || 'Pilih Opsi'}</label>
+										<select class="rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500 cursor-pointer">
+											<option value="">{comp.props?.placeholder || '-- Pilih Opsi --'}</option>
+											<option value="opt1">Pilihan 1</option>
+											<option value="opt2">Pilihan 2</option>
+											<option value="opt3">Pilihan 3</option>
+										</select>
+									</div>
+								{:else if comp.type === 'file_upload'}
+									<div class="flex flex-col gap-1.5 max-w-md py-2">
+										<label class="text-xs font-semibold text-slate-300">{comp.props?.title || comp.name || 'Lampiran File'}</label>
+										<div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-950/60 p-6 text-center cursor-pointer hover:border-emerald-500/60 transition">
+											<Upload class="h-6 w-6 text-emerald-400 mb-1" />
+											<span class="text-xs font-medium text-slate-300">Tarik file ke sini atau klik u/ memilih</span>
+											<span class="text-[10px] text-slate-500 mt-0.5">Mendukung PDF, PNG, JPG, XLSX (maks 10MB)</span>
+										</div>
 									</div>
 								{:else if comp.type === 'label' || comp.type === 'kit:label' || comp.type === 'kit:typography'}
 									<div class="py-2">
