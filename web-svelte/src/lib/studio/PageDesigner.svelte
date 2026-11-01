@@ -68,10 +68,12 @@
 		BarChart3,
 		Blocks,
 		Upload,
-		Sparkles
+		Sparkles,
+		FileCode
 	} from 'lucide-svelte';
 	import { catalog } from '$lib/kit/catalog';
 	import { catalogTitle } from '$lib/kit/catalog-title';
+	import CodeBehindEditor from './CodeBehindEditor.svelte';
 
 	let {
 		appSlug = 'bmn-enterprise',
@@ -108,6 +110,33 @@
 
 	// Visual Basic Form Window State
 	let snapToGrid = $state(true);
+
+	// Visual Basic View Mode State: 'designer' (Shift+F7) vs 'code' (F7)
+	let activeViewMode = $state<'designer' | 'code'>('designer');
+	let codeTargetObject = $state<string>('(General)');
+	let codeTargetProcedure = $state<string>('(Declarations)');
+
+	function openCodeBehind(objectName?: string, procedureName?: string) {
+		if (objectName) codeTargetObject = objectName;
+		if (procedureName) codeTargetProcedure = procedureName;
+		activeViewMode = 'code';
+	}
+
+	function openCodeBehindForComponent(comp: RuntimeComponent) {
+		const safeName = comp.name ? comp.name.replace(/[^a-zA-Z0-9_]/g, '_') : `Control_${comp.id}`;
+		let defaultProc = 'Click';
+		const compType = (comp.type || '').toLowerCase();
+		if (compType.includes('input') || compType.includes('text') || compType === 'textarea') {
+			defaultProc = 'Change';
+		} else if (compType.includes('grid') || compType.includes('table') || compType === 'interactive_grid' || compType === 'cards_grid') {
+			defaultProc = 'RowSelect';
+		} else if (compType.includes('form')) {
+			defaultProc = 'BeforeSubmit';
+		} else if (compType.includes('chart') || compType === 'kpi_cards') {
+			defaultProc = 'RefreshData';
+		}
+		openCodeBehind(safeName, defaultProc);
+	}
 
 	// Add Page modal state
 	let showAddPageModal = $state(false);
@@ -152,6 +181,24 @@
 
 	onMount(() => {
 		loadApp();
+
+		function handleKeyDown(e: KeyboardEvent) {
+			if (e.key === 'F7' && !e.shiftKey) {
+				e.preventDefault();
+				openCodeBehind();
+			} else if (e.key === 'F7' && e.shiftKey) {
+				e.preventDefault();
+				activeViewMode = 'designer';
+			} else if (e.key === 'F5' && !e.ctrlKey) {
+				e.preventDefault();
+				handleRunApp();
+			}
+		}
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => {
+			window.removeEventListener('keydown', handleKeyDown);
+		};
 	});
 
 	$effect(() => {
@@ -767,6 +814,32 @@
 
 				<div class="h-4 w-px bg-slate-800 mx-0.5"></div>
 
+				<!-- Visual Basic View Mode Toggle: Designer (Shift+F7) vs Code Behind (F7) -->
+				<div class="flex items-center rounded border border-slate-700 bg-slate-950 p-0.5 text-xs">
+					<button
+						type="button"
+						onclick={() => (activeViewMode = 'designer')}
+						class="flex items-center gap-1.5 px-2.5 py-1 rounded font-bold transition {activeViewMode === 'designer' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}"
+						title="View Object / Form Designer (Shift+F7)"
+					>
+						<Layout class="h-3.5 w-3.5" />
+						<span>Designer</span>
+						<span class="text-[9px] opacity-70 hidden md:inline font-mono">Shift+F7</span>
+					</button>
+					<button
+						type="button"
+						onclick={() => openCodeBehind()}
+						class="flex items-center gap-1.5 px-2.5 py-1 rounded font-bold transition {activeViewMode === 'code' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}"
+						title="View Code / Code Behind (F7)"
+					>
+						<FileCode class="h-3.5 w-3.5" />
+						<span>Code Behind</span>
+						<span class="text-[9px] opacity-70 hidden md:inline font-mono">F7</span>
+					</button>
+				</div>
+
+				<div class="h-4 w-px bg-slate-800 mx-0.5"></div>
+
 				<!-- Active Form Dropdown -->
 				<div class="flex items-center gap-1.5 rounded bg-slate-950 px-2 py-0.5 border border-slate-800 text-xs">
 					<span class="text-slate-500 font-mono text-[10px]">Form:</span>
@@ -986,10 +1059,23 @@
 		</aside>
 
 		<!-- ======================================================= -->
-		<!-- CENTER: VISUAL BASIC FORM DESIGNER CANVAS (Col: 6)      -->
+		<!-- CENTER: VISUAL BASIC FORM DESIGNER / CODE BEHIND CANVAS -->
 		<!-- ======================================================= -->
 		<main class="col-span-6 flex flex-col rounded-lg border border-slate-800 bg-slate-950 shadow overflow-hidden">
-			<!-- Canvas Header Status -->
+			{#if activeViewMode === 'code' && activePage}
+				<CodeBehindEditor
+					{activePage}
+					{appSlug}
+					onViewDesigner={() => (activeViewMode = 'designer')}
+					onRunApp={handleRunApp}
+					initialObject={codeTargetObject}
+					initialProcedure={codeTargetProcedure}
+					onSaveCode={(code, dialect) => {
+						console.log('Saved Code-Behind:', activePage.title, dialect);
+					}}
+				/>
+			{:else}
+				<!-- Canvas Header Status -->
 			<div class="flex items-center justify-between border-b border-slate-800 px-3 py-1.5 bg-slate-900/90 text-xs">
 				<div class="flex items-center gap-2">
 					<Layout class="h-3.5 w-3.5 text-emerald-400" />
@@ -1069,8 +1155,17 @@
 							</span>
 						</div>
 
-						<!-- Window Buttons: Min, Max, Close -->
-						<div class="flex items-center gap-1 text-slate-400">
+						<!-- Window Buttons: View Code, Min, Max, Close -->
+						<div class="flex items-center gap-1.5 text-slate-400">
+							<button
+								type="button"
+								onclick={() => openCodeBehind('Form', 'Load')}
+								class="flex items-center gap-1 rounded bg-slate-800/90 hover:bg-blue-600 hover:text-white px-2 py-0.5 text-[10px] font-bold text-slate-300 transition border border-slate-700 cursor-pointer shadow-sm"
+								title="Buka Code Behind Form Ini (F7)"
+							>
+								<FileCode class="h-3 w-3 text-blue-400" />
+								<span>Code Behind</span>
+							</button>
 							<button type="button" class="h-4 w-4 flex items-center justify-center rounded hover:bg-slate-700 hover:text-white text-xs" title="Minimize Form">
 								<Minus class="h-3 w-3" />
 							</button>
@@ -1089,10 +1184,16 @@
 					</div>
 
 					<!-- Form Window Client Canvas (Authentic Dot Grid) -->
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
 						id="vb-form-client-canvas"
 						class="min-h-[520px] p-5 relative overflow-auto"
 						style="background-image: radial-gradient(#334155 1.5px, transparent 1.5px); background-size: 16px 16px; background-color: rgba(15, 23, 42, 0.95);"
+						ondblclick={(e) => {
+							if (e.target === e.currentTarget) {
+								openCodeBehind('Form', 'Load');
+							}
+						}}
 					>
 						{#if !activePage?.components || activePage.components.length === 0}
 							<!-- Empty Form Placeholder -->
@@ -1186,6 +1287,10 @@
 										class="rounded border bg-slate-950/90 select-none shadow-lg transition-shadow {canvasLayoutMode === 'vb' ? 'absolute' : 'relative p-3'} {isSelected ? 'border-emerald-400 ring-2 ring-emerald-500/30 z-30 shadow-2xl' : 'border-slate-700/80 hover:border-slate-600 z-10'}"
 										style={canvasLayoutMode === 'vb' ? `left: ${bounds.left}px; top: ${bounds.top}px; width: ${bounds.width}px; min-height: ${bounds.height}px;` : ''}
 										onclick={() => (selectedComponentId = comp.id)}
+										ondblclick={(e) => {
+											e.stopPropagation();
+											openCodeBehindForComponent(comp);
+										}}
 									>
 										<!-- VB 8 Classic Grab Handles when selected in VB mode -->
 										{#if isSelected && canvasLayoutMode === 'vb'}
@@ -1263,6 +1368,17 @@
 												{:else}
 													<span class="font-mono text-[9px] text-slate-500">Source: {comp.datasource_type}</span>
 												{/if}
+												<button
+													type="button"
+													onclick={(e) => {
+														e.stopPropagation();
+														openCodeBehindForComponent(comp);
+													}}
+													class="rounded p-0.5 text-slate-400 hover:bg-blue-950/60 hover:text-blue-400 transition cursor-pointer"
+													title="Lihat Code Behind kontrol ini (F7)"
+												>
+													<FileCode class="h-3 w-3" />
+												</button>
 												<button
 													type="button"
 													onclick={(e) => {
@@ -1569,6 +1685,7 @@
 					</div>
 				</div>
 			</div>
+			{/if}
 		</main>
 
 		<!-- ============================================================== -->
@@ -1582,14 +1699,34 @@
 						<FolderTree class="h-3.5 w-3.5 text-emerald-400" />
 						<span>Project Explorer</span>
 					</div>
-					<button
-						type="button"
-						onclick={() => (showAddPageModal = true)}
-						class="text-emerald-400 hover:text-emerald-300 font-bold"
-						title="Add Form"
-					>
-						+ Form
-					</button>
+					<div class="flex items-center gap-1">
+						<button
+							type="button"
+							onclick={() => openCodeBehind()}
+							class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] {activeViewMode === 'code' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-400 hover:bg-slate-800'} transition font-bold"
+							title="View Code (F7)"
+						>
+							<FileCode class="h-3 w-3" />
+							<span>Code</span>
+						</button>
+						<button
+							type="button"
+							onclick={() => (activeViewMode = 'designer')}
+							class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] {activeViewMode === 'designer' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800'} transition font-bold"
+							title="View Object / Designer (Shift+F7)"
+						>
+							<Layout class="h-3 w-3" />
+							<span>Object</span>
+						</button>
+						<button
+							type="button"
+							onclick={() => (showAddPageModal = true)}
+							class="text-emerald-400 hover:text-emerald-300 font-bold ml-1 text-xs"
+							title="Add Form"
+						>
+							+ Form
+						</button>
+					</div>
 				</div>
 
 				<!-- Project Tree Hierarchy -->
@@ -1666,6 +1803,10 @@
 															<button
 																type="button"
 																onclick={() => (selectedComponentId = comp.id)}
+										ondblclick={(e) => {
+											e.stopPropagation();
+											openCodeBehindForComponent(comp);
+										}}
 																class="flex items-center gap-1 rounded px-1.5 py-0.5 text-left text-[10px] transition {isCompSelected ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'}"
 															>
 																<span class="text-slate-500">â€¢</span>
