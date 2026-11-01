@@ -269,6 +269,38 @@ func HandleUpdateBuilderPage(pool *pgxpool.Pool) http.HandlerFunc {
 	}
 }
 
+type SavePageCodeReq struct {
+	PageID      int    `json:"page_id"`
+	ScriptFront string `json:"script_front"`
+	ScriptBack  string `json:"script_back"`
+}
+
+func HandleSavePageCode(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req SavePageCodeReq
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		query := `
+			UPDATE builder.pages
+			SET script_front = $2, script_back = $3
+			WHERE id = $1
+		`
+		_, err := pool.Exec(r.Context(), query, req.PageID, req.ScriptFront, req.ScriptBack)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "page_id": req.PageID})
+	}
+}
+
+// ============================================================================
+// 5. DELETE COMPONENT
+// ============================================================================
+
 // ============================================================================
 // 4. COMPONENTS MANAGEMENT
 // ============================================================================
@@ -366,6 +398,10 @@ func HandleUpdateBuilderComponent(pool *pgxpool.Pool) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 	}
 }
+
+// ============================================================================
+// 5. DELETE COMPONENT
+// ============================================================================
 
 type DeleteComponentReq struct {
 	ComponentID int `json:"component_id"`

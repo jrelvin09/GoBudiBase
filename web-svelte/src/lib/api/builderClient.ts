@@ -21,6 +21,8 @@ export interface RuntimePage {
 	min_role?: string;
 	order_num: number;
 	is_home: boolean;
+	script_front?: string;
+	script_back?: string;
 	components: RuntimeComponent[];
 }
 
@@ -181,6 +183,19 @@ export async function updatePage(data: {
 	min_role?: string;
 }): Promise<void> {
 	const res = await fetch(`${API_BUILDER}/pages/update`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data)
+	});
+	if (!res.ok) throw new Error(await res.text());
+}
+
+export async function savePageCode(data: {
+	page_id: number;
+	script_front: string;
+	script_back: string;
+}): Promise<void> {
+	const res = await fetch(`${API_BUILDER}/pages/code`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(data)

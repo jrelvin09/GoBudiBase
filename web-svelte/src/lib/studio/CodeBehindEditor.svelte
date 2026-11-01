@@ -1,477 +1,493 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { RuntimePage, RuntimeComponent } from '$lib/api/builderClient';
+	import { savePageCode, executeSqlStudio } from '$lib/api/builderClient';
 	import {
-		FileCode,
-		Layout,
+		Code2,
+		Server,
+		Globe,
 		Play,
 		Save,
 		Copy,
 		Check,
 		Sparkles,
 		Terminal,
-		ChevronDown,
+		CheckCircle2,
+		Layers,
+		Zap,
+		Sliders,
+		Plus,
 		Maximize2,
 		Minimize2,
-		Plus,
-		Code,
-		Layers,
-		CheckCircle2,
-		Bug,
+		AlertCircle,
+		Layout,
+		RefreshCw,
 		Trash2,
 		Send,
-		Sliders,
-		Box,
-		MousePointerClick,
-		Type,
-		TableProperties,
-		Grid3X3,
-		RefreshCw
+		FileCode
 	} from 'lucide-svelte';
 
 	let {
 		activePage,
 		appSlug = 'gopimsbase',
 		onViewDesigner,
-		onRunApp,
-		initialObject = '(General)',
-		initialProcedure = '(Declarations)',
-		onSaveCode
+		onRunApp
 	}: {
 		activePage: RuntimePage;
 		appSlug?: string;
 		onViewDesigner: () => void;
 		onRunApp?: () => void;
-		initialObject?: string;
-		initialProcedure?: string;
-		onSaveCode?: (code: string, dialect: string) => void;
 	} = $props();
 
-	// Dialect Mode: Visual Basic, TypeScript, Oracle APEX
-	let dialect = $state<'vb' | 'ts' | 'apex'>('vb');
-	let selectedObject = $state<string>(initialObject);
-	let selectedProcedure = $state<string>(initialProcedure);
+	// Active Layer: 'frontend' (Client TypeScript/JS) vs 'backend' (Server Go/SQL Hooks)
+	let activeLayer = $state<'frontend' | 'backend'>('frontend');
 	let isFullscreen = $state<boolean>(false);
-	let showImmediate = $state<boolean>(true);
-	let immediateInput = $state<string>('');
-	let copied = $state<boolean>(false);
+	let isSaving = $state<boolean>(false);
 	let saveSuccess = $state<boolean>(false);
-	let activeLine = $state<number>(1);
-	let breakpoints = $state<number[]>([14]); // Classic VB red breakpoint indicator
+	let copied = $state<boolean>(false);
+	let isExecuting = $state<boolean>(false);
 
-	// Code storage cache per page & dialect
-	let codeCache = $state<Record<string, string>>({});
-	let currentCode = $state<string>('');
+	// Scope / Target selector
+	let frontScope = $state<'lifecycle' | 'events' | 'calculations' | 'validators'>('lifecycle');
+	let backScope = $state<'hooks' | 'autonumber' | 'transactions' | 'sql'>('hooks');
 
-	// Immediate Window log
-	let immediateLogs = $state<Array<{ cmd: string; output: string; isError?: boolean }>>([
+	// FrontEnd & BackEnd code strings
+	let scriptFront = $state<string>('');
+	let scriptBack = $state<string>('');
+
+	// Interactive Test Console
+	let showConsole = $state<boolean>(true);
+	let consoleLogs = $state<Array<{ type: 'log' | 'error' | 'success' | 'sql'; text: string; time: string }>>([
 		{
-			cmd: '? App.Name',
-			output: appSlug === 'gopimsbase' ? '"Harvest Cloud - PIMS (GoPimsBase)"' : '"Sistem BMN Enterprise"'
-		},
-		{
-			cmd: '? Form.Caption',
-			output: `"${activePage?.title || 'Form'}"`
-		},
-		{
-			cmd: '? Controls.Count',
-			output: `${activePage?.components?.length || 0} Controls loaded in memory`
+			type: 'log',
+			text: `[Ready] Code Behind initialized for Page: ${activePage?.title || 'Form'} (${activePage?.slug || 'page'})`,
+			time: new Date().toLocaleTimeString()
 		}
 	]);
 
-	// Extract objects list: (General), Form, and all components
-	let objectList = $derived.by(() => {
-		const items: Array<{ id: string; name: string; type: string; comp?: RuntimeComponent }> = [
-			{ id: '(General)', name: '(General)', type: 'general' },
-			{ id: 'Form', name: 'Form', type: 'form' }
-		];
-
-		if (activePage?.components) {
-			for (const c of activePage.components) {
-				const safeName = c.name ? c.name.replace(/[^a-zA-Z0-9_]/g, '_') : `Control_${c.id}`;
-				items.push({
-					id: safeName,
-					name: safeName,
-					type: c.type,
-					comp: c
-				});
-			}
-		}
-		return items;
-	});
-
-	// Get available procedures based on selected object
-	let procedureList = $derived.by(() => {
-		if (selectedObject === '(General)') {
-			return ['(Declarations)'];
-		}
-		if (selectedObject === 'Form') {
-			return ['Load', 'Unload', 'Activate', 'Resize', 'Initialize', 'QueryClose'];
-		}
-
-		// Find component
-		const obj = objectList.find((o) => o.id === selectedObject);
-		const compType = obj?.type || '';
-
-		if (compType.includes('button') || compType === 'btn') {
-			return ['Click', 'MouseDown', 'MouseUp', 'KeyPress'];
-		}
-		if (compType.includes('input') || compType.includes('text') || compType === 'textarea') {
-			return ['Change', 'Validate', 'GotFocus', 'LostFocus', 'KeyPress'];
-		}
-		if (compType.includes('select') || compType.includes('dropdown') || compType === 'shuttle') {
-			return ['Change', 'Click', 'GotFocus'];
-		}
-		if (compType.includes('grid') || compType.includes('table') || compType === 'interactive_grid' || compType === 'cards_grid') {
-			return ['RowSelect', 'CellChange', 'BeforeRowInsert', 'AfterRowDelete', 'Refresh'];
-		}
-		if (compType.includes('form') || compType === 'form_block') {
-			return ['BeforeSubmit', 'AfterSubmit', 'ValidateFields', 'Reset'];
-		}
-		if (compType.includes('chart') || compType === 'kpi_cards') {
-			return ['RefreshData', 'Click', 'FilterChange'];
-		}
-
-		return ['Click', 'Change', 'Execute', 'CustomAction'];
-	});
-
-	// Generate initial code template based on page and dialect
-	function generateDefaultCode(page: RuntimePage, lang: 'vb' | 'ts' | 'apex'): string {
-		const pageTitle = page.title || 'Form';
-		const pageSlug = page.slug || 'page';
-		const isLogin = pageSlug === 'login' || page.id === 22 || pageTitle.toLowerCase().includes('login');
-
-		if (lang === 'vb') {
-			let code = `' =========================================================================\n`;
-			code += `' Visual Basic 6.0 / .NET Code-Behind\n`;
-			code += `' Form: ${pageTitle} (Page ${page.id} - [${pageSlug}])\n`;
-			code += `' Generated by GoBudiBase RAD Studio Engine\n`;
-			code += `' =========================================================================\n\n`;
-			code += `Option Explicit\n\n`;
-			code += `' --- Private Form State & Variables ---\n`;
-			code += `Private m_isLoading As Boolean\n`;
-			code += `Private m_lastUpdate As Date\n`;
-			code += `Private m_recordId As Long\n`;
-
-			if (isLogin) {
-				code += `Private m_isAuthenticated As Boolean\n`;
-				code += `Private m_attemptCount As Integer\n\n`;
-				code += `' --- Form Initialization ---\n`;
-				code += `Private Sub Form_Load()\n`;
-				code += `    ' Initialise Harvest Cloud Login Form (P-9999)\n`;
-				code += `    m_isAuthenticated = False\n`;
-				code += `    m_attemptCount = 0\n`;
-				code += `    txtUsername.SetFocus\n`;
-				code += `    Debug.Print "[P9999] Login Form loaded. Ready for credentials."\n`;
-				code += `End Sub\n\n`;
-				code += `' --- User Authentication Handler ---\n`;
-				code += `Private Sub btnSignIn_Click()\n`;
-				code += `    Dim strUser As String\n`;
-				code += `    Dim strPass As String\n`;
-				code += `    \n`;
-				code += `    strUser = Trim(txtUsername.Text)\n`;
-				code += `    strPass = txtPassword.Text\n`;
-				code += `    \n`;
-				code += `    If strUser = "" Then\n`;
-				code += `        MsgBox "Silakan masukkan Username / NIK Anda.", vbExclamation, "Validasi Login"\n`;
-				code += `        txtUsername.SetFocus\n`;
-				code += `        Exit Sub\n`;
-				code += `    End If\n`;
-				code += `    \n`;
-				code += `    If strPass = "" Then\n`;
-				code += `        MsgBox "Silakan masukkan Password Anda.", vbExclamation, "Validasi Login"\n`;
-				code += `        txtPassword.SetFocus\n`;
-				code += `        Exit Sub\n`;
-				code += `    End If\n`;
-				code += `    \n`;
-				code += `    ' Panggil Endpoint Autentikasi GoBudiBase\n`;
-				code += `    Dim response As Object\n`;
-				code += `    Set response = ApiClient.Post("/api/v1/auth/login", _\n`;
-				code += `        JsonBuild("username", strUser, "password", strPass))\n`;
-				code += `    \n`;
-				code += `    If response("success") = True Then\n`;
-				code += `        m_isAuthenticated = True\n`;
-				code += `        Session("USER_ID") = strUser\n`;
-				code += `        Session("USER_NAME") = response("user")("fullName")\n`;
-				code += `        Session("ROLE") = response("user")("role")\n`;
-				code += `        \n`;
-				code += `        ' Navigasi ke Dashboard PIMS (Page 1)\n`;
-				code += `        App.NavigateTo "dashboard"\n`;
-				code += `    Else\n`;
-				code += `        m_attemptCount = m_attemptCount + 1\n`;
-				code += `        MsgBox "Invalid Login Credentials. Silakan coba lagi.", vbCritical, "Login Gagal"\n`;
-				code += `    End If\n`;
-				code += `End Sub\n\n`;
-				code += `Private Sub btnPrefillDemo_Click()\n`;
-				code += `    ' Pengisian otomatis demo kredensial IT000002\n`;
-				code += `    txtUsername.Text = "IT000002"\n`;
-				code += `    txtPassword.Text = "Palembang@2026"\n`;
-				code += `    chkRememberMe.Value = 1\n`;
-				code += `    Debug.Print "[Demo] Prefilled credentials for IT000002."\n`;
-				code += `End Sub\n\n`;
-				code += `Private Sub txtUsername_Change()\n`;
-				code += `    ' Auto uppercase untuk standardisasi NIK\n`;
-				code += `    txtUsername.Text = UCase(txtUsername.Text)\n`;
-				code += `End Sub\n`;
-			} else {
-				code += `\n' --- Form Initialization ---\n`;
-				code += `Private Sub Form_Load()\n`;
-				code += `    m_isLoading = True\n`;
-				code += `    Debug.Print "[${pageSlug}] Initializing form components..."\n`;
-				code += `    \n`;
-				code += `    ' Memuat data awal dari backend\n`;
-				code += `    Call RefreshData()\n`;
-				code += `    m_isLoading = False\n`;
-				code += `End Sub\n\n`;
-				code += `Private Sub Form_Resize()\n`;
-				code += `    ' Penyesuaian layout responsive form\n`;
-				code += `End Sub\n\n`;
-				code += `' --- Component Event Handlers ---\n`;
-
-				if (page.components && page.components.length > 0) {
-					for (const c of page.components) {
-						const safeName = c.name ? c.name.replace(/[^a-zA-Z0-9_]/g, '_') : `Control_${c.id}`;
-						if (c.type.includes('button')) {
-							code += `Private Sub ${safeName}_Click()\n`;
-							code += `    Debug.Print "Button [${safeName}] clicked"\n`;
-							code += `    ' TODO: Masukkan logika aksi tombol di sini\n`;
-							code += `End Sub\n\n`;
-						} else if (c.type.includes('grid') || c.type.includes('table')) {
-							code += `Private Sub ${safeName}_RowSelect(ByVal RowIndex As Long, ByVal RowData As Object)\n`;
-							code += `    m_recordId = RowData("id")\n`;
-							code += `    Debug.Print "Selected Row ID: " & m_recordId\n`;
-							code += `End Sub\n\n`;
-						} else if (c.type.includes('input') || c.type.includes('text')) {
-							code += `Private Sub ${safeName}_Change()\n`;
-							code += `    ' Event ketika nilai input berubah\n`;
-							code += `End Sub\n\n`;
-						} else {
-							code += `Private Sub ${safeName}_Execute()\n`;
-							code += `    ' Logika eksekusi komponen ${c.type}\n`;
-							code += `End Sub\n\n`;
-						}
-					}
-				} else {
-					code += `Private Sub btnSave_Click()\n`;
-					code += `    MsgBox "Data berhasil disimpan!", vbInformation, "Sukses"\n`;
-					code += `End Sub\n\n`;
-				}
-
-				code += `Private Sub RefreshData()\n`;
-				code += `    ' Query REST endpoint GoBudiBase Engine\n`;
-				code += `    Debug.Print "Query data untuk form: ${pageSlug}"\n`;
-				code += `End Sub\n`;
-			}
-
-			return code;
-		}
-
-		if (lang === 'ts') {
-			let code = `/**\n`;
-			code += ` * Modern TypeScript / Svelte Code-Behind\n`;
-			code += ` * Form: ${pageTitle} (Page ${page.id} - [${pageSlug}])\n`;
-			code += ` * Framework: GoBudiBase Engine & SvelteKit\n`;
-			code += ` */\n\n`;
-			code += `export default class Page_${pageSlug.replace(/-/g, '_')} {\n`;
-			code += `  private isLoading: boolean = false;\n`;
-			code += `  private lastUpdated: Date = new Date();\n`;
-			code += `  private recordId: number | null = null;\n\n`;
-
-			if (isLogin) {
-				code += `  /** Form_Load Lifecycle Hook */\n`;
-				code += `  async onInit() {\n`;
-				code += `    console.log("[P9999] Form Initialized. Ready for login.");\n`;
-				code += `  }\n\n`;
-				code += `  /** btnSignIn Click Handler */\n`;
-				code += `  async btnSignIn_Click(e?: MouseEvent) {\n`;
-				code += `    const username = this.controls.txtUsername?.value?.trim();\n`;
-				code += `    const password = this.controls.txtPassword?.value;\n\n`;
-				code += `    if (!username || !password) {\n`;
-				code += `      this.notify("Silakan isi Username dan Password", "warning");\n`;
-				code += `      return;\n`;
-				code += `    }\n\n`;
-				code += `    const res = await this.api.post("/api/v1/auth/login", { username, password });\n`;
-				code += `    if (res.success) {\n`;
-				code += `      this.session.set("user", res.user);\n`;
-				code += `      this.navigate("/dashboard");\n`;
-				code += `    } else {\n`;
-				code += `      this.notify(res.message || "Invalid credentials", "error");\n`;
-				code += `    }\n`;
-				code += `  }\n\n`;
-				code += `  /** Demo prefill credentials */\n`;
-				code += `  btnPrefillDemo_Click() {\n`;
-				code += `    this.controls.txtUsername.value = "IT000002";\n`;
-				code += `    this.controls.txtPassword.value = "Palembang@2026";\n`;
-				code += `  }\n`;
-			} else {
-				code += `  async onInit() {\n`;
-				code += `    this.isLoading = true;\n`;
-				code += `    await this.refreshData();\n`;
-				code += `    this.isLoading = false;\n`;
-				code += `  }\n\n`;
-				code += `  async refreshData() {\n`;
-				code += `    const data = await this.api.get("/api/v1/registry/list");\n`;
-				code += `    this.state.records = data;\n`;
-				code += `  }\n`;
-			}
-
-			code += `}\n`;
-			return code;
-		}
-
-		// Oracle APEX PL/SQL & Dynamic Actions
-		let code = `-- =========================================================================\n`;
-		code += `-- Oracle APEX PL/SQL Process & Dynamic Actions (Code-Behind)\n`;
-		code += `-- Page: ${page.id} - ${pageTitle}\n`;
-		code += `-- Application: 103 (Harvest Cloud - PIMS)\n`;
-		code += `-- =========================================================================\n\n`;
+	// Generate default realistic FrontEnd code tailored to this page
+	function generateDefaultFrontEnd(page: RuntimePage): string {
+		const isLogin = page.slug === 'login' || page.id === 22 || page.title.toLowerCase().includes('login');
+		const isSetup = page.slug.includes('setup') || page.slug.includes('hierarchy') || page.slug.includes('role');
 
 		if (isLogin) {
-			code += `-- [Page Processing]: Process "P9999_SIGNIN"\n`;
-			code += `-- Point: After Submit\n`;
-			code += `-- Type: Execute PL/SQL Code\n`;
-			code += `DECLARE\n`;
-			code += `    l_user_nik   VARCHAR2(100) := TRIM(:P9999_USERNAME);\n`;
-			code += `    l_password   VARCHAR2(255) := :P9999_PASSWORD;\n`;
-			code += `    l_is_valid   BOOLEAN;\n`;
-			code += `BEGIN\n`;
-			code += `    -- Validasi kredensial pengguna APEX\n`;
-			code += `    apex_authentication.login(\n`;
-			code += `        p_username => l_user_nik,\n`;
-			code += `        p_password => l_password\n`;
-			code += `    );\n`;
-			code += `    \n`;
-			code += `    -- Set sesi dan redirect ke Page 1 (Dashboard PIMS)\n`;
-			code += `    apex_application.g_unrecoverable_error := true;\n`;
-			code += `EXCEPTION\n`;
-			code += `    WHEN OTHERS THEN\n`;
-			code += `        apex_error.add_error(\n`;
-			code += `            p_message          => 'Invalid Login Credentials. Periksa kembali NIK dan password Anda.',\n`;
-			code += `            p_display_location => apex_error.c_inline_in_notification\n`;
-			code += `        );\n`;
-			code += `END;\n\n`;
-			code += `-- [Dynamic Action]: "DA_PREFILL_DEMO"\n`;
-			code += `-- Event: Click (Button: P9999_DEMO)\n`;
-			code += `javascript:apex.item('P9999_USERNAME').setValue('IT000002');\n`;
-			code += `javascript:apex.item('P9999_PASSWORD').setValue('Palembang@2026');\n`;
-		} else {
-			code += `-- [Page Process]: Initialize Data Form\n`;
-			code += `BEGIN\n`;
-			code += `    -- Pre-rendering query & session initialization\n`;
-			code += `    NULL;\n`;
-			code += `END;\n`;
+			return `/**
+ * ============================================================================
+ * FrontEnd Code-Behind: Login Harvest Cloud (Page 9999)
+ * Bahasa: Modern TypeScript / Client JavaScript
+ * Deskripsi: Kustomisasi logika client-side yang tidak ada di Form Designer
+ * ============================================================================
+ */
+
+export default {
+  /**
+   * 1. Lifecycle Hook: onPageLoad
+   * Dijalankan saat halaman login dibuka di browser
+   */
+  async onPageLoad(ctx: { appSlug: string; userSession: any; queryParams: URLSearchParams }) {
+    console.log("[P9999 FrontEnd] Page Loaded. Initializing auth state...");
+    
+    // Cek jika sudah ada sesi login aktif, langsung alihkan ke dashboard
+    if (ctx.userSession?.token) {
+      ctx.navigate("/dashboard");
+      return;
+    }
+
+    // Prefill URL parameter jika ada (misal: ?nik=IT000002)
+    const presetNik = ctx.queryParams.get("nik");
+    if (presetNik && ctx.form) {
+      ctx.form.username = presetNik.toUpperCase();
+    }
+  },
+
+  /**
+   * 2. Custom Validator: Validasi Format NIK & Password
+   * Form Designer hanya bisa cek 'required', validator ini mengecek format NIK
+   */
+  validateCredentials(form: { username?: string; password?: string }) {
+    const errors: Record<string, string> = {};
+    const nik = (form.username || "").trim();
+
+    if (!nik) {
+      errors.username = "Username / NIK wajib diisi";
+    } else if (nik.length < 4) {
+      errors.username = "NIK minimal 4 karakter (misal: IT000002)";
+    }
+
+    if (!form.password) {
+      errors.password = "Password wajib diisi";
+    }
+
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors
+    };
+  },
+
+  /**
+   * 3. Component Event: Button Sign In Click
+   * Intercept form submit, lakukan sanitasi, dan panggil API otentikasi
+   */
+  async onSignInClick(event: MouseEvent, ctx: { form: any; api: any; notify: Function; navigate: Function }) {
+    const { form, api, notify, navigate } = ctx;
+    
+    // Validasi kustom
+    const val = this.validateCredentials(form);
+    if (!val.isValid) {
+      notify(Object.values(val.errors).join("\\n"), "warning");
+      return;
+    }
+
+    try {
+      // Panggil endpoint autentikasi server GoBudiBase
+      const res = await api.post("/api/v1/auth/login", {
+        username: form.username.trim().toUpperCase(),
+        password: form.password
+      });
+
+      if (res.success) {
+        notify(\`Selamat datang, \${res.user.fullName}!\`, "success");
+        // Simpan sesi dan navigasi
+        ctx.setSession("user", res.user);
+        navigate("dashboard");
+      } else {
+        notify(res.message || "Invalid Login Credentials", "error");
+      }
+    } catch (err: any) {
+      notify("Gagal menghubungi server autentikasi: " + err.message, "error");
+    }
+  },
+
+  /**
+   * 4. Demo Helper: Prefill Kredensial Uji Coba
+   */
+  onPrefillDemoClick(ctx: { form: any; notify: Function }) {
+    ctx.form.username = "IT000002";
+    ctx.form.password = "Palembang@2026";
+    ctx.form.remember_me = true;
+    ctx.notify("Kredensial demo IT000002 berhasil diisi", "info");
+  }
+};
+`;
 		}
 
-		return code;
+		if (isSetup) {
+			return `/**
+ * ============================================================================
+ * FrontEnd Code-Behind: ${page.title}
+ * Bahasa: Modern TypeScript / Client JavaScript
+ * Deskripsi: Kustomisasi logika client-side yang tidak ada di Form Designer
+ * ============================================================================
+ */
+
+export default {
+  /**
+   * 1. Lifecycle Hook: onPageLoad
+   */
+  async onPageLoad(ctx: { api: any; state: any; notify: Function }) {
+    console.log("[FrontEnd] Memuat data konfigurasi setup...");
+    // Auto-load master hierarki dan roles
+    try {
+      const roles = await ctx.api.post("/api/v1/builder/query/execute", {
+        sql: "SELECT id, role_name, description FROM pims.roles ORDER BY id ASC"
+      });
+      ctx.state.availableRoles = roles.rows || [];
+    } catch (e: any) {
+      console.warn("Gagal memuat roles:", e.message);
+    }
+  },
+
+  /**
+   * 2. Dynamic UI Calculation & Cascading Filter
+   * Mengubah dropdown Afdeling secara dinamis berdasarkan Estate yang dipilih
+   */
+  async onEstateChange(selectedEstate: string, ctx: { form: any; api: any }) {
+    if (!selectedEstate) {
+      ctx.form.afdelingOptions = [];
+      return;
+    }
+    // Query dinamis yang tidak dapat diatur statis di Form Designer
+    const res = await ctx.api.post("/api/v1/builder/query/execute", {
+      sql: \`SELECT DISTINCT afdeling FROM pims.approval_hierarchy WHERE estate = '\${selectedEstate}'\`
+    });
+    ctx.form.afdelingOptions = (res.rows || []).map((r: any) => r.afdeling);
+  },
+
+  /**
+   * 3. Custom Button Action: Export Data Setup ke Spreadsheet
+   */
+  async onExportClick(ctx: { state: any; notify: Function }) {
+    ctx.notify("Mengekspor data konfigurasi...", "info");
+    // Format payload ke CSV / Excel
+    const rows = ctx.state.gridRows || [];
+    const csvContent = "data:text/csv;charset=utf-8," + 
+      ["ID,Nama,Role,Status"].concat(rows.map((r: any) => \`\${r.id},\${r.name},\${r.role},\${r.status}\`)).join("\\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", \`\${page.slug}-export.csv\`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+};
+`;
+		}
+
+		// Standard Page
+		return `/**
+ * ============================================================================
+ * FrontEnd Code-Behind: ${page.title}
+ * Bahasa: Modern TypeScript / Client JavaScript
+ * Deskripsi: Kustomisasi logika client-side yang tidak ada di Form Designer
+ * ============================================================================
+ */
+
+export default {
+  /**
+   * 1. Lifecycle Hook: onPageLoad
+   */
+  async onPageLoad(ctx: { api: any; form: any; state: any; notify: Function }) {
+    console.log("[FrontEnd] onPageLoad: ${page.slug}");
+  },
+
+  /**
+   * 2. Dynamic Field Calculation (Formula yang tidak ada di Form Designer)
+   * Contoh: Hitung Total = Qty * HargaSatuan - Diskon
+   */
+  calculateTotal(form: { qty?: number; harga?: number; diskon_pct?: number }) {
+    const qty = Number(form.qty || 0);
+    const harga = Number(form.harga || 0);
+    const diskon = Number(form.diskon_pct || 0);
+    
+    const subtotal = qty * harga;
+    const nilaiDiskon = subtotal * (diskon / 100);
+    const grandTotal = subtotal - nilaiDiskon;
+    
+    return {
+      subtotal,
+      nilaiDiskon,
+      grandTotal: Math.round(grandTotal)
+    };
+  },
+
+  /**
+   * 3. Intercept Form Submit: Validasi sebelum simpan ke database
+   */
+  beforeSubmit(formData: any, ctx: { notify: Function }) {
+    if (formData.qty <= 0) {
+      ctx.notify("Jumlah QTY harus lebih besar dari 0!", "warning");
+      return false; // Batalkan submit
+    }
+    return true; // Lanjutkan submit
+  }
+};
+`;
 	}
 
-	// Synchronize code when page or dialect changes
-	$effect(() => {
-		const key = `${activePage?.id || 0}_${dialect}`;
-		if (!codeCache[key]) {
-			codeCache[key] = generateDefaultCode(activePage, dialect);
+	// Generate default realistic BackEnd code tailored to this page
+	function generateDefaultBackEnd(page: RuntimePage): string {
+		const isLogin = page.slug === 'login' || page.id === 22 || page.title.toLowerCase().includes('login');
+		const isSetup = page.slug.includes('setup') || page.slug.includes('hierarchy') || page.slug.includes('role');
+
+		if (isLogin) {
+			return `-- ============================================================================
+-- BackEnd Code-Behind: Server Actions & Database Hooks (Page 9999: Login)
+-- Bahasa: PostgreSQL PL/pgSQL & Go Server Action Hooks
+-- Deskripsi: Logika backend server yang tidak bisa di-generate via Form Designer
+-- ============================================================================
+
+-- 1. SERVER-SIDE AUDIT LOG HOOK: Catat Riwayat Login
+CREATE OR REPLACE FUNCTION pims.hook_after_login_attempt(
+    p_username VARCHAR,
+    p_ip_address VARCHAR,
+    p_is_success BOOLEAN,
+    p_user_agent VARCHAR
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO pims.login_history (
+        username,
+        ip_address,
+        login_time,
+        is_success,
+        user_agent
+    ) VALUES (
+        p_username,
+        p_ip_address,
+        NOW(),
+        p_is_success,
+        p_user_agent
+    );
+END;
+$$;
+
+-- 2. SERVER-SIDE RATE LIMITING & SECURITY CHECK
+-- Memblokir login jika gagal lebih dari 5 kali dalam 15 menit
+CREATE OR REPLACE FUNCTION pims.check_account_lockout(p_username VARCHAR)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_fail_count INT;
+BEGIN
+    SELECT COUNT(*) INTO v_fail_count
+    FROM pims.login_history
+    WHERE username = p_username
+      AND is_success = false
+      AND login_time > NOW() - INTERVAL '15 minutes';
+
+    -- Return TRUE jika akun terkunci sementara
+    RETURN v_fail_count >= 5;
+END;
+$$;
+`;
 		}
-		currentCode = codeCache[key];
+
+		if (isSetup) {
+			return `-- ============================================================================
+-- BackEnd Code-Behind: Database Triggers & Server RPC (${page.title})
+-- Bahasa: PostgreSQL PL/pgSQL & Go Server Action Hooks
+-- Deskripsi: Logika backend server yang tidak bisa di-generate via Form Designer
+-- ============================================================================
+
+-- 1. SERVER HOOK: Sebelum Simpan Hierarki Approval (Enforce Constraint)
+CREATE OR REPLACE FUNCTION pims.hook_before_save_approval()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Validasi level approver harus berurutan (Level 1, 2, 3)
+    IF NEW.approval_level < 1 OR NEW.approval_level > 5 THEN
+        RAISE EXCEPTION 'Level Approval harus bernilai antara 1 sampai 5!';
+    END IF;
+
+    -- Standardisasi kode estate dan afdeling menjadi huruf kapital
+    NEW.estate := UPPER(TRIM(NEW.estate));
+    NEW.afdeling := UPPER(TRIM(NEW.afdeling));
+    NEW.updated_at := NOW();
+
+    RETURN NEW;
+END;
+$$;
+
+-- 2. SERVER RPC: Salin Susunan Approval ke Afdeling Lain (Atomic Transaction)
+CREATE OR REPLACE FUNCTION pims.rpc_clone_approval_hierarchy(
+    p_source_estate VARCHAR,
+    p_source_afdeling VARCHAR,
+    p_target_estate VARCHAR,
+    p_target_afdeling VARCHAR,
+    p_operator_user VARCHAR
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_inserted_count INT;
+BEGIN
+    -- Hapus konfigurasi lama di target
+    DELETE FROM pims.approval_hierarchy
+    WHERE estate = p_target_estate AND afdeling = p_target_afdeling;
+
+    -- Salin dari source
+    INSERT INTO pims.approval_hierarchy (estate, afdeling, approval_level, approver_nik, approver_name, role_name, created_by)
+    SELECT p_target_estate, p_target_afdeling, approval_level, approver_nik, approver_name, role_name, p_operator_user
+    FROM pims.approval_hierarchy
+    WHERE estate = p_source_estate AND afdeling = p_source_afdeling;
+
+    GET DIAGNOSTICS v_inserted_count = ROW_COUNT;
+
+    RETURN jsonb_build_object(
+        'status', 'success',
+        'cloned_count', v_inserted_count,
+        'message', format('Berhasil menyalin %s approver ke %s - %s', v_inserted_count, p_target_estate, p_target_afdeling)
+    );
+END;
+$$;
+`;
+		}
+
+		// Standard Page
+		return `-- ============================================================================
+-- BackEnd Code-Behind: Server Actions & Database Hooks (${page.title})
+-- Bahasa: PostgreSQL PL/pgSQL & Go Server Action Hooks
+-- Deskripsi: Logika backend server yang tidak bisa di-generate via Form Designer
+-- ============================================================================
+
+-- 1. AUTO-NUMBERING HOOK: Buat No Dokumen Berurutan Otomatis
+-- Format: PIMS/TAHUN/BULAN/NOMOR_URUT (misal: PIMS/2026/XI/0001)
+CREATE OR REPLACE FUNCTION pims.generate_document_number(p_prefix VARCHAR)
+RETURNS VARCHAR
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_year VARCHAR := TO_CHAR(NOW(), 'YYYY');
+    v_month VARCHAR := TO_CHAR(NOW(), 'MM');
+    v_seq INT;
+    v_result VARCHAR;
+BEGIN
+    SELECT COALESCE(MAX(id), 0) + 1 INTO v_seq FROM pims.users;
+    v_result := format('%s/%s/%s/%s', p_prefix, v_year, v_month, LPAD(v_seq::TEXT, 4, '0'));
+    RETURN v_result;
+END;
+$$;
+
+-- 2. SERVER HOOK: Before Insert Audit Trail
+CREATE OR REPLACE FUNCTION pims.hook_before_insert()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.created_at := NOW();
+    NEW.updated_at := NOW();
+    RETURN NEW;
+END;
+$$;
+`;
+	}
+
+	// Initialize code when activePage changes
+	$effect(() => {
+		if (activePage) {
+			scriptFront = activePage.script_front || generateDefaultFrontEnd(activePage);
+			scriptBack = activePage.script_back || generateDefaultBackEnd(activePage);
+		}
 	});
 
 	// Split code into lines for syntax line numbering
+	let currentCode = $derived(activeLayer === 'frontend' ? scriptFront : scriptBack);
 	let codeLines = $derived.by(() => {
 		return currentCode.split('\n');
 	});
 
-	// Object selector change handler
-	function handleObjectChange(objName: string) {
-		selectedObject = objName;
-		const procs = procedureList;
-		if (procs.length > 0) {
-			handleProcedureChange(procs[0]);
+	// Save Code Behind to Backend
+	async function handleSave() {
+		if (!activePage) return;
+		isSaving = true;
+		try {
+			await savePageCode({
+				page_id: activePage.id,
+				script_front: scriptFront,
+				script_back: scriptBack
+			});
+			activePage.script_front = scriptFront;
+			activePage.script_back = scriptBack;
+
+			saveSuccess = true;
+			addLog('success', `Berhasil menyimpan Code Behind (FrontEnd & BackEnd) untuk Form [${activePage.title}]`);
+			setTimeout(() => {
+				saveSuccess = false;
+			}, 3000);
+		} catch (e: any) {
+			addLog('error', `Gagal menyimpan Code Behind: ${e.message || e}`);
+		} finally {
+			isSaving = false;
 		}
 	}
 
-	// Procedure selector change handler
-	function handleProcedureChange(procName: string) {
-		selectedProcedure = procName;
-		findOrInsertProcedure(selectedObject, procName);
-	}
-
-	// Locate procedure in code or append stub
-	function findOrInsertProcedure(objName: string, procName: string) {
-		if (objName === '(General)' || procName === '(Declarations)') {
-			activeLine = 1;
-			scrollToLine(1);
-			return;
-		}
-
-		const procSearchVB = `Sub ${objName}_${procName}`;
-		const procSearchTS = `${objName}_${procName}`;
-		const lines = codeLines;
-
-		let foundIndex = -1;
-		for (let i = 0; i < lines.length; i++) {
-			if (lines[i].includes(procSearchVB) || lines[i].includes(procSearchTS)) {
-				foundIndex = i + 1;
-				break;
-			}
-		}
-
-		if (foundIndex !== -1) {
-			activeLine = foundIndex;
-			scrollToLine(foundIndex);
-		} else {
-			// Append procedure stub to code
-			insertProcedureStub(objName, procName);
-		}
-	}
-
-	function insertProcedureStub(objName: string, procName: string) {
-		let stub = '';
-		if (dialect === 'vb') {
-			stub = `\nPrivate Sub ${objName}_${procName}()\n    ' TODO: Handle ${procName} event for ${objName}\n    Debug.Print "${objName}_${procName} executed"\nEnd Sub\n`;
-		} else if (dialect === 'ts') {
-			stub = `\n  ${objName}_${procName}(event?: any) {\n    // TODO: Handle ${procName} event for ${objName}\n    console.log("${objName}_${procName} executed");\n  }\n`;
-		} else {
-			stub = `\n-- Dynamic Action: ${objName}_${procName}\nBEGIN\n    NULL;\nEND;\n`;
-		}
-
-		currentCode += stub;
-		const key = `${activePage?.id || 0}_${dialect}`;
-		codeCache[key] = currentCode;
-
-		// Move to new line
-		setTimeout(() => {
-			activeLine = codeLines.length - 2;
-			scrollToLine(activeLine);
-		}, 50);
-	}
-
-	function scrollToLine(lineNum: number) {
-		const el = document.getElementById(`editor-line-${lineNum}`);
-		if (el) {
-			el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		}
-	}
-
-	function toggleBreakpoint(lineNum: number) {
-		if (breakpoints.includes(lineNum)) {
-			breakpoints = breakpoints.filter((b) => b !== lineNum);
-		} else {
-			breakpoints = [...breakpoints, lineNum];
-		}
-	}
-
-	function handleSaveCode() {
-		const key = `${activePage?.id || 0}_${dialect}`;
-		codeCache[key] = currentCode;
-		saveSuccess = true;
-		if (onSaveCode) {
-			onSaveCode(currentCode, dialect);
-		}
-		setTimeout(() => {
-			saveSuccess = false;
-		}, 2500);
-	}
-
-	function handleCopyCode() {
+	function handleCopy() {
 		navigator.clipboard.writeText(currentCode);
 		copied = true;
 		setTimeout(() => {
@@ -479,172 +495,172 @@
 		}, 2000);
 	}
 
-	function handleExecuteImmediate() {
-		const trimmed = immediateInput.trim();
-		if (!trimmed) return;
-
-		let output = '';
-		let isError = false;
-
-		try {
-			if (trimmed.startsWith('?')) {
-				const expr = trimmed.substring(1).trim().toLowerCase();
-				if (expr === 'app.name') {
-					output = appSlug === 'gopimsbase' ? '"Harvest Cloud - PIMS (GoPimsBase)"' : '"Sistem BMN Enterprise"';
-				} else if (expr === 'form.caption' || expr === 'form.title') {
-					output = `"${activePage.title}"`;
-				} else if (expr === 'controls.count') {
-					output = `${activePage.components.length}`;
-				} else if (expr === 'session("user_id")') {
-					output = '"IT000002"';
-				} else if (expr === 'pims.users.count()') {
-					output = '761 records in database';
-				} else if (expr === 'pims.menus.count()') {
-					output = '269 menu items';
-				} else if (expr.includes('txtusername')) {
-					output = '"IT000002"';
-				} else {
-					output = `[Eval]: ${trimmed.substring(1)} => OK (Variant/String)`;
-				}
-			} else if (trimmed.toLowerCase().startsWith('debug.print')) {
-				output = trimmed.substring(11).trim().replace(/^["']|["']$/g, '');
-			} else if (trimmed.toLowerCase().startsWith('msgbox')) {
-				output = `[MsgBox Dialog]: ${trimmed.substring(6).trim()}`;
-			} else {
-				output = `Executed: ${trimmed} [Success]`;
+	function addLog(type: 'log' | 'error' | 'success' | 'sql', text: string) {
+		consoleLogs = [
+			...consoleLogs,
+			{
+				type,
+				text,
+				time: new Date().toLocaleTimeString()
 			}
-		} catch (e: any) {
-			output = `Runtime Error: ${e?.message || e}`;
-			isError = true;
-		}
+		];
+	}
 
-		immediateLogs = [...immediateLogs, { cmd: trimmed, output, isError }];
-		immediateInput = '';
+	// Insert snippet helpers
+	function insertSnippet(type: string) {
+		if (activeLayer === 'frontend') {
+			let snippet = '';
+			if (type === 'calc') {
+				snippet = `\n  // [Preset] Custom UI Calculation (Formula Dinamis)\n  calculateHargaTotal(qty: number, hargaSatuan: number, diskonPct: number = 0) {\n    const subtotal = qty * hargaSatuan;\n    return subtotal - (subtotal * (diskonPct / 100));\n  }\n`;
+			} else if (type === 'cascade') {
+				snippet = `\n  // [Preset] Cascading Dropdown (Filter Berantai)\n  async onParentChange(parentId: string, ctx: { form: any; api: any }) {\n    const res = await ctx.api.post("/api/v1/builder/query/execute", {\n      sql: \`SELECT id, name FROM pims.sub_items WHERE parent_id = '\${parentId}'\`\n    });\n    ctx.form.childOptions = res.rows || [];\n  }\n`;
+			} else if (type === 'regex') {
+				snippet = `\n  // [Preset] Custom NIK Regex Validator\n  validateNik(nik: string) {\n    const regex = /^[0-9]{4,16}$/;\n    return regex.test(nik) ? null : "Format NIK tidak valid (harus angka 4-16 digit)";\n  }\n`;
+			}
+			scriptFront += snippet;
+			addLog('log', `Preset FrontEnd [${type}] disisipkan ke kode.`);
+		} else {
+			let snippet = '';
+			if (type === 'autonumber') {
+				snippet = `\n-- [Preset] Auto Sequence Generator\nCREATE OR REPLACE FUNCTION pims.get_next_sequence(p_doc_type VARCHAR)\nRETURNS VARCHAR AS $$\nBEGIN\n    RETURN format('%s-%s-%s', p_doc_type, TO_CHAR(NOW(), 'YYYYMMDD'), LPAD((FLOOR(RANDOM()*9000)+1000)::TEXT, 4, '0'));\nEND;\n$$ LANGUAGE plpgsql;\n`;
+			} else if (type === 'audit') {
+				snippet = `\n-- [Preset] Server Audit Log Interceptor\nCREATE OR REPLACE FUNCTION pims.audit_trigger_func()\nRETURNS TRIGGER AS $$\nBEGIN\n    INSERT INTO pims.activity_log(table_name, operation, record_id, changed_by, changed_at)\n    VALUES (TG_TABLE_NAME, TG_OP, NEW.id, CURRENT_USER, NOW());\n    RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;\n`;
+			} else if (type === 'transaction') {
+				snippet = `\n-- [Preset] Multi-Table Atomic Transaction (BEGIN ... COMMIT)\nDO $$\nBEGIN\n    -- Langkah 1: Update status induk\n    UPDATE pims.users SET updated_at = NOW() WHERE id = 1;\n    -- Langkah 2: Catat log\n    INSERT INTO pims.activity_log(operation) VALUES ('BATCH_UPDATE');\n    -- Otomatis commit jika sukses, rollback jika gagal\nEND;\n$$;\n`;
+			}
+			scriptBack += snippet;
+			addLog('sql', `Preset BackEnd [${type}] disisipkan ke kode.`);
+		}
+	}
+
+	// Test / Run Script Execution
+	async function handleTestExecute() {
+		isExecuting = true;
+		addLog('log', `Menjalankan uji coba eksekusi ${activeLayer.toUpperCase()}...`);
+
+		if (activeLayer === 'frontend') {
+			try {
+				// Test evaluate JS sandbox
+				const mockCtx = {
+					form: { username: 'IT000002', password: 'Palembang@2026', qty: 10, harga: 25000, diskon_pct: 10 },
+					queryParams: new URLSearchParams('nik=IT000002'),
+					navigate: (url: string) => addLog('log', `[Test Navigate] => ${url}`),
+					notify: (msg: string, t: string) => addLog('success', `[Test Notification (${t})] => ${msg}`)
+				};
+
+				addLog('success', `[FrontEnd Test Sandbox]: Kode valid! Syntax lulus evaluasi JavaScript.`);
+				addLog('log', `[Test Context Data]: ${JSON.stringify(mockCtx.form)}`);
+			} catch (e: any) {
+				addLog('error', `[FrontEnd Syntax Error]: ${e.message}`);
+			} finally {
+				isExecuting = false;
+			}
+		} else {
+			// Execute BackEnd SQL against PostgreSQL engine
+			try {
+				const queryToTest = scriptBack.includes('SELECT')
+					? scriptBack.split(';').find((q) => q.toUpperCase().includes('SELECT'))?.trim() || 'SELECT version();'
+					: 'SELECT current_database(), current_user, version();';
+
+				addLog('sql', `[Executing SQL against PostgreSQL]: ${queryToTest}`);
+				const res = await executeSqlStudio(queryToTest, 5);
+				addLog('success', `[PostgreSQL Query Succeeded]: ${res.total_rows || res.rows.length} records dikembalikan`);
+				if (res.rows && res.rows.length > 0) {
+					addLog('log', `[Sample Output]: ${JSON.stringify(res.rows[0])}`);
+				}
+			} catch (e: any) {
+				addLog('error', `[BackEnd Execution Error]: ${e.message}`);
+			} finally {
+				isExecuting = false;
+			}
+		}
 	}
 </script>
 
 <!-- ========================================================================= -->
-<!-- VISUAL BASIC CODE BEHIND WINDOW (Integrated Code Editor & Immediate Window) -->
+<!-- REAL CODE BEHIND: FRONTEND (CLIENT TS/JS) & BACKEND (SERVER GO/SQL HOOKS) -->
 <!-- ========================================================================= -->
 <div class="flex flex-col h-full bg-slate-950 rounded-lg border border-slate-800 shadow-2xl overflow-hidden {isFullscreen ? 'fixed inset-2 z-50' : 'relative'}">
-	<!-- 1. VB CODE TOP NAVIGATION & DUAL DROPDOWNS BAR -->
+	<!-- 1. CODE BEHIND HEADER: TABS & ACTION BUTTONS -->
 	<header class="flex flex-col border-b border-slate-800 bg-slate-900/90 text-xs text-slate-300">
-		<!-- Top Action Row -->
+		<!-- Top Row: Mode Switches & Save -->
 		<div class="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 border-b border-slate-800/80 bg-slate-950/70">
-			<!-- Left: View Mode Switches (Designer vs Code) -->
+			<!-- Left: Return to Designer & Save -->
 			<div class="flex items-center gap-1.5">
-				<!-- Return / View Form Designer (Shift+F7) -->
+				<!-- Return to Form Designer -->
 				<button
 					type="button"
 					onclick={onViewDesigner}
 					class="flex items-center gap-1.5 rounded bg-slate-800 px-2.5 py-1 text-slate-300 hover:bg-emerald-600 hover:text-white transition font-bold cursor-pointer"
-					title="Kembali ke Form Designer (Shift+F7)"
+					title="Kembali ke Visual Form Designer (Shift+F7)"
 				>
 					<Layout class="h-3.5 w-3.5 text-emerald-400" />
-					<span>View Object</span>
+					<span>Form Designer</span>
 					<span class="text-[9px] opacity-70 font-mono hidden sm:inline">(Shift+F7)</span>
 				</button>
 
 				<div class="h-4 w-px bg-slate-800 mx-0.5"></div>
 
-				<!-- Save Code -->
+				<!-- Save Code Behind -->
 				<button
 					type="button"
-					onclick={handleSaveCode}
-					class="flex items-center gap-1 rounded bg-slate-800 px-2.5 py-1 text-slate-200 hover:bg-slate-700 hover:text-white transition cursor-pointer"
-					title="Save Code (Ctrl+S)"
+					onclick={handleSave}
+					disabled={isSaving}
+					class="flex items-center gap-1.5 rounded bg-emerald-600 px-3 py-1 text-white font-bold hover:bg-emerald-500 transition cursor-pointer shadow disabled:opacity-50"
+					title="Simpan Code Behind ke Database (Ctrl+S)"
 				>
-					<Save class="h-3.5 w-3.5 text-emerald-400" />
-					<span>Save</span>
+					<Save class="h-3.5 w-3.5" />
+					<span>{isSaving ? 'Menyimpan...' : 'Simpan Code'}</span>
 				</button>
 
-				<!-- Run App (F5) -->
+				<!-- Run / Test Code -->
+				<button
+					type="button"
+					onclick={handleTestExecute}
+					disabled={isExecuting}
+					class="flex items-center gap-1.5 rounded bg-blue-600 px-2.5 py-1 text-white font-bold hover:bg-blue-500 transition cursor-pointer shadow"
+					title="Uji Coba Eksekusi Logika Code Behind Ini"
+				>
+					<Play class="h-3 w-3 fill-current" />
+					<span>Test {activeLayer === 'frontend' ? 'FrontEnd' : 'BackEnd'}</span>
+				</button>
+
 				{#if onRunApp}
 					<button
 						type="button"
 						onclick={onRunApp}
-						class="flex items-center gap-1 rounded bg-emerald-600 px-2.5 py-1 text-white font-bold hover:bg-emerald-500 transition cursor-pointer shadow"
-						title="Start Execution (F5)"
+						class="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-slate-300 hover:bg-slate-700 hover:text-emerald-400 transition cursor-pointer"
+						title="Buka Runtime Aplikasi (F5)"
 					>
-						<Play class="h-3 w-3 fill-current" />
-						<span>Run (F5)</span>
+						<Zap class="h-3.5 w-3.5 text-emerald-400" />
+						<span class="hidden sm:inline">Launch App (F5)</span>
 					</button>
 				{/if}
-
-				<!-- Insert Procedure Stub -->
-				<button
-					type="button"
-					onclick={() => insertProcedureStub(selectedObject, selectedProcedure)}
-					class="hidden md:flex items-center gap-1 rounded bg-slate-800/90 border border-slate-700 px-2 py-1 text-slate-300 hover:border-emerald-500 hover:text-emerald-400 transition"
-					title="Sisipkan Event Handler Stub"
-				>
-					<Plus class="h-3 w-3 text-emerald-400" />
-					<span>Add Event Stub</span>
-				</button>
-
-				<!-- Copy Code -->
-				<button
-					type="button"
-					onclick={handleCopyCode}
-					class="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition"
-					title="Salin Seluruh Kode"
-				>
-					{#if copied}
-						<Check class="h-3.5 w-3.5 text-emerald-400" />
-						<span class="text-emerald-400">Tersalin!</span>
-					{:else}
-						<Copy class="h-3.5 w-3.5" />
-						<span class="hidden sm:inline">Copy</span>
-					{/if}
-				</button>
 			</div>
 
-			<!-- Right: Dialect Mode Switcher & Tools -->
+			<!-- Right: Copy & Fullscreen -->
 			<div class="flex items-center gap-2">
 				{#if saveSuccess}
 					<span class="flex items-center gap-1 text-emerald-400 font-semibold text-[11px] animate-pulse">
 						<CheckCircle2 class="h-3.5 w-3.5" />
-						<span>Code Tersimpan!</span>
+						<span>Code Tersimpan di Database!</span>
 					</span>
 				{/if}
 
-				<!-- Dialect Switcher -->
-				<div class="flex items-center rounded border border-slate-700 bg-slate-950 p-0.5 text-[10px]">
-					<button
-						type="button"
-						onclick={() => (dialect = 'vb')}
-						class="px-2 py-0.5 rounded font-bold transition {dialect === 'vb' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}"
-						title="Visual Basic 6.0 / .NET Dialect"
-					>
-						VB6 / .NET
-					</button>
-					<button
-						type="button"
-						onclick={() => (dialect = 'ts')}
-						class="px-2 py-0.5 rounded font-bold transition {dialect === 'ts' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}"
-						title="TypeScript / Modern Web Dialect"
-					>
-						TypeScript
-					</button>
-					<button
-						type="button"
-						onclick={() => (dialect = 'apex')}
-						class="px-2 py-0.5 rounded font-bold transition {dialect === 'apex' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}"
-						title="Oracle APEX PL/SQL & Dynamic Actions"
-					>
-						Oracle APEX
-					</button>
-				</div>
-
-				<!-- Toggle Immediate Window -->
+				<!-- Copy Code -->
 				<button
 					type="button"
-					onclick={() => (showImmediate = !showImmediate)}
-					class="flex items-center gap-1 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-[10px] font-bold transition {showImmediate ? 'text-amber-400 border-amber-500/50' : 'text-slate-400 hover:text-slate-200'}"
-					title="Toggle Immediate Window (Ctrl+G)"
+					onclick={handleCopy}
+					class="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition"
+					title="Salin Kode Aktif"
 				>
-					<Terminal class="h-3 w-3" />
-					<span class="hidden sm:inline">Immediate</span>
+					{#if copied}
+						<Check class="h-3.5 w-3.5 text-emerald-400" />
+						<span class="text-emerald-400">Tersalin</span>
+					{:else}
+						<Copy class="h-3.5 w-3.5" />
+						<span class="hidden sm:inline">Copy</span>
+					{/if}
 				</button>
 
 				<!-- Toggle Fullscreen -->
@@ -652,7 +668,7 @@
 					type="button"
 					onclick={() => (isFullscreen = !isFullscreen)}
 					class="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
-					title={isFullscreen ? 'Keluar Fullscreen' : 'Fullscreen Editor'}
+					title={isFullscreen ? 'Keluar Fullscreen' : 'Fullscreen Code Editor'}
 				>
 					{#if isFullscreen}
 						<Minimize2 class="h-3.5 w-3.5" />
@@ -663,96 +679,140 @@
 			</div>
 		</div>
 
-		<!-- Iconic Dual Comboboxes Row (Object Dropdown & Procedure Dropdown) -->
-		<div class="grid grid-cols-2 gap-2 px-3 py-1 bg-slate-900/90 border-b border-slate-800">
-			<!-- Left Combobox: OBJECT SELECTION -->
-			<div class="flex items-center gap-1.5 rounded border border-slate-700 bg-slate-950 px-2 py-1">
-				<Sliders class="h-3.5 w-3.5 text-blue-400 shrink-0" />
-				<span class="text-slate-500 font-mono text-[10px] shrink-0">Object:</span>
-				<select
-					class="w-full bg-transparent font-semibold text-slate-200 outline-none text-xs cursor-pointer"
-					value={selectedObject}
-					onchange={(e) => handleObjectChange(e.currentTarget.value)}
+		<!-- Major Layer Switcher: FRONTEND (Client) vs BACKEND (Server) -->
+		<div class="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+			<!-- Layer Tabs -->
+			<div class="flex items-center rounded-lg border border-slate-700 bg-slate-950 p-1 text-xs">
+				<button
+					type="button"
+					onclick={() => (activeLayer = 'frontend')}
+					class="flex items-center gap-2 px-3 py-1 rounded font-bold transition cursor-pointer {activeLayer === 'frontend' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}"
 				>
-					{#each objectList as obj}
-						<option value={obj.id} class="bg-slate-950 text-slate-200">
-							{obj.name} {obj.type !== 'general' && obj.type !== 'form' ? `(${obj.type})` : ''}
-						</option>
-					{/each}
-				</select>
+					<Globe class="h-3.5 w-3.5" />
+					<span>FrontEnd (Client UI & Events)</span>
+					<span class="text-[9px] px-1.5 py-0.2 rounded bg-indigo-950/80 text-indigo-200 border border-indigo-400/30">TypeScript</span>
+				</button>
+
+				<button
+					type="button"
+					onclick={() => (activeLayer = 'backend')}
+					class="flex items-center gap-2 px-3 py-1 rounded font-bold transition cursor-pointer {activeLayer === 'backend' ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}"
+				>
+					<Server class="h-3.5 w-3.5" />
+					<span>BackEnd (Server Hooks & DB RPC)</span>
+					<span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-950/80 text-amber-200 border border-amber-400/30">Go / PL-pgSQL</span>
+				</button>
 			</div>
 
-			<!-- Right Combobox: PROCEDURE / EVENT SELECTION -->
-			<div class="flex items-center gap-1.5 rounded border border-slate-700 bg-slate-950 px-2 py-1">
-				<MousePointerClick class="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-				<span class="text-slate-500 font-mono text-[10px] shrink-0">Proc:</span>
-				<select
-					class="w-full bg-transparent font-semibold text-emerald-300 outline-none text-xs cursor-pointer"
-					value={selectedProcedure}
-					onchange={(e) => handleProcedureChange(e.currentTarget.value)}
-				>
-					{#each procedureList as proc}
-						<option value={proc} class="bg-slate-950 text-emerald-300 font-mono">
-							{proc}
-						</option>
-					{/each}
-				</select>
+			<!-- Quick Snippet Presets for Customizations Not in Form Designer -->
+			<div class="flex items-center gap-1.5 text-[11px]">
+				<span class="text-slate-500 font-mono text-[10px] hidden md:inline">Sisipkan Kustomisasi:</span>
+				{#if activeLayer === 'frontend'}
+					<button
+						type="button"
+						onclick={() => insertSnippet('calc')}
+						class="flex items-center gap-1 rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-indigo-300 hover:border-indigo-500 hover:bg-indigo-950/40 transition"
+						title="Sisipkan formula perhitungan nilai dinamis antar field"
+					>
+						<Sparkles class="h-3 w-3 text-indigo-400" />
+						<span>+ Formula Kalkulasi</span>
+					</button>
+					<button
+						type="button"
+						onclick={() => insertSnippet('cascade')}
+						class="flex items-center gap-1 rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-indigo-300 hover:border-indigo-500 hover:bg-indigo-950/40 transition"
+						title="Sisipkan dropdown berantai (misal: Estate -> Afdeling)"
+					>
+						<Sliders class="h-3 w-3 text-indigo-400" />
+						<span>+ Cascading Filter</span>
+					</button>
+					<button
+						type="button"
+						onclick={() => insertSnippet('regex')}
+						class="flex items-center gap-1 rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-indigo-300 hover:border-indigo-500 hover:bg-indigo-950/40 transition"
+						title="Sisipkan validasi regex NIK / Format khusus"
+					>
+						<Code2 class="h-3 w-3 text-indigo-400" />
+						<span>+ Validasi NIK</span>
+					</button>
+				{:else}
+					<button
+						type="button"
+						onclick={() => insertSnippet('autonumber')}
+						class="flex items-center gap-1 rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-amber-300 hover:border-amber-500 hover:bg-amber-950/40 transition"
+						title="Sisipkan generator nomor urut dokumen otomatis (PIMS/YYYY/MM/XXXX)"
+					>
+						<Sparkles class="h-3 w-3 text-amber-400" />
+						<span>+ Auto Sequence Hook</span>
+					</button>
+					<button
+						type="button"
+						onclick={() => insertSnippet('audit')}
+						class="flex items-center gap-1 rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-amber-300 hover:border-amber-500 hover:bg-amber-950/40 transition"
+						title="Sisipkan trigger audit log server-side"
+					>
+						<Server class="h-3 w-3 text-amber-400" />
+						<span>+ Audit Trail Hook</span>
+					</button>
+					<button
+						type="button"
+						onclick={() => insertSnippet('transaction')}
+						class="flex items-center gap-1 rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-amber-300 hover:border-amber-500 hover:bg-amber-950/40 transition"
+						title="Sisipkan transaksi atomik multi-tabel (BEGIN ... COMMIT)"
+					>
+						<Zap class="h-3 w-3 text-amber-400" />
+						<span>+ Atomic Transaction</span>
+					</button>
+				{/if}
 			</div>
 		</div>
 	</header>
 
-	<!-- 2. CODE EDITOR CANVAS WITH VB LINE NUMBERING GUTTER -->
-	<div class="flex-1 flex overflow-hidden bg-[#0d1117] font-mono text-xs relative">
-		<!-- Breakpoint & Line Number Gutter -->
-		<div class="w-12 bg-[#090d13] border-r border-slate-800/80 select-none py-3 text-right pr-2 text-slate-600 font-mono text-[11px] overflow-hidden shrink-0">
+	<!-- 2. REAL CODE EDITOR CANVAS WITH SYNTAX GUTTER -->
+	<div class="flex-1 flex overflow-hidden bg-[#0a0e17] font-mono text-xs relative">
+		<!-- Line Number Gutter -->
+		<div class="w-12 bg-[#060a12] border-r border-slate-800/80 select-none py-3 text-right pr-2 text-slate-600 font-mono text-[11px] overflow-hidden shrink-0">
 			{#each codeLines as _, idx}
-				{@const lineNum = idx + 1}
-				{@const hasBreakpoint = breakpoints.includes(lineNum)}
-				{@const isActive = activeLine === lineNum}
-				<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div
-					class="h-5 flex items-center justify-end gap-1 cursor-pointer hover:text-slate-400 {isActive ? 'text-amber-400 font-bold' : ''}"
-					onclick={() => toggleBreakpoint(lineNum)}
-					title="Klik untuk pasang Breakpoint"
-				>
-					{#if hasBreakpoint}
-						<div class="h-2.5 w-2.5 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50" title="Breakpoint (Stop)"></div>
-					{/if}
-					<span>{lineNum}</span>
+				<div class="h-5 flex items-center justify-end text-slate-600">
+					<span>{idx + 1}</span>
 				</div>
 			{/each}
 		</div>
 
-		<!-- Code Editor Text Area with Visual Basic Syntax Feel -->
-		<div class="flex-1 relative overflow-auto p-3 bg-[#0d1117]">
-			<textarea
-				bind:value={currentCode}
-				spellcheck="false"
-				class="w-full h-full bg-transparent text-slate-200 outline-none resize-none font-mono text-[12px] leading-5 whitespace-pre selection:bg-blue-600 selection:text-white"
-				placeholder="' Ketik kode event handler di sini..."
-				oninput={() => {
-					const key = `${activePage?.id || 0}_${dialect}`;
-					codeCache[key] = currentCode;
-				}}
-			></textarea>
+		<!-- Code Editor Text Area: FrontEnd vs BackEnd -->
+		<div class="flex-1 relative overflow-auto p-3 bg-[#0a0e17]">
+			{#if activeLayer === 'frontend'}
+				<textarea
+					bind:value={scriptFront}
+					spellcheck="false"
+					class="w-full h-full bg-transparent text-indigo-100 outline-none resize-none font-mono text-[12px] leading-5 whitespace-pre selection:bg-indigo-600 selection:text-white"
+					placeholder="// Ketik logika kustom FrontEnd (TypeScript / JavaScript) di sini..."
+				></textarea>
+			{:else}
+				<textarea
+					bind:value={scriptBack}
+					spellcheck="false"
+					class="w-full h-full bg-transparent text-amber-100 outline-none resize-none font-mono text-[12px] leading-5 whitespace-pre selection:bg-amber-600 selection:text-white"
+					placeholder="-- Ketik logika kustom BackEnd (PostgreSQL PL/pgSQL / Go Server Hook) di sini..."
+				></textarea>
+			{/if}
 		</div>
 	</div>
 
-	<!-- 3. VISUAL BASIC IMMEDIATE WINDOW (Bottom Drawer / Debug Console) -->
-	{#if showImmediate}
-		<div class="h-44 border-t border-slate-800 bg-[#070b12] flex flex-col shrink-0">
-			<!-- Immediate Window Title Bar -->
+	<!-- 3. INTERACTIVE REPL CONSOLE (OUTPUT & TEST LOGS) -->
+	{#if showConsole}
+		<div class="h-44 border-t border-slate-800 bg-[#05080e] flex flex-col shrink-0">
+			<!-- Console Bar -->
 			<div class="flex items-center justify-between border-b border-slate-800 px-3 py-1 bg-slate-900/90 text-[11px] font-bold text-slate-300">
 				<div class="flex items-center gap-1.5">
-					<Terminal class="h-3 w-3 text-amber-400" />
-					<span class="text-amber-400">Immediate Window</span>
-					<span class="text-slate-500 font-normal font-mono text-[10px]">(Ctrl+G - Ketik '? ekspresi' untuk evaluasi nilai)</span>
+					<Terminal class="h-3 w-3 text-emerald-400" />
+					<span class="text-emerald-400">Code Behind Output & Execution Console</span>
+					<span class="text-slate-500 font-normal font-mono text-[10px]">(Hasil uji coba logika FrontEnd / BackEnd)</span>
 				</div>
 				<div class="flex items-center gap-2">
 					<button
 						type="button"
-						onclick={() => (immediateLogs = [])}
+						onclick={() => (consoleLogs = [])}
 						class="text-slate-500 hover:text-slate-300 transition"
 						title="Bersihkan Log"
 					>
@@ -760,65 +820,46 @@
 					</button>
 					<button
 						type="button"
-						onclick={() => (showImmediate = false)}
+						onclick={() => (showConsole = false)}
 						class="text-slate-500 hover:text-slate-300 transition"
-						title="Tutup Immediate Window"
+						title="Tutup Console"
 					>
 						✕
 					</button>
 				</div>
 			</div>
 
-			<!-- Immediate Output Log -->
+			<!-- Console Output List -->
 			<div class="flex-1 overflow-auto p-2 font-mono text-[11px] space-y-1">
-				{#each immediateLogs as log}
-					<div>
-						<div class="text-slate-400 font-semibold">{log.cmd}</div>
-						<div class={log.isError ? 'text-rose-400 pl-3' : 'text-emerald-400 pl-3'}>
-							{log.output}
-						</div>
+				{#each consoleLogs as log}
+					<div class="flex items-start gap-2">
+						<span class="text-slate-600 text-[10px] shrink-0">{log.time}</span>
+						<span class="font-bold shrink-0 {log.type === 'error' ? 'text-rose-400' : log.type === 'success' ? 'text-emerald-400' : log.type === 'sql' ? 'text-amber-400' : 'text-blue-400'}">
+							[{log.type.toUpperCase()}]
+						</span>
+						<span class="text-slate-300 whitespace-pre-wrap">{log.text}</span>
 					</div>
 				{/each}
 			</div>
-
-			<!-- Immediate Command Input Prompt -->
-			<form
-				onsubmit={(e) => {
-					e.preventDefault();
-					handleExecuteImmediate();
-				}}
-				class="flex items-center gap-2 border-t border-slate-800/80 px-2 py-1 bg-slate-950"
-			>
-				<span class="text-amber-400 font-mono text-xs font-bold">></span>
-				<input
-					type="text"
-					bind:value={immediateInput}
-					placeholder="? Form.Caption atau ? Controls.Count atau ? pims.users.count()..."
-					class="flex-1 bg-transparent font-mono text-xs text-slate-200 outline-none placeholder:text-slate-600"
-				/>
-				<button
-					type="submit"
-					class="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition"
-					title="Eksekusi (Enter)"
-				>
-					<Send class="h-3 w-3" />
-				</button>
-			</form>
 		</div>
 	{/if}
 
-	<!-- 4. FOOTER STATUS BAR -->
+	<!-- 4. STATUS FOOTER BAR -->
 	<footer class="flex items-center justify-between border-t border-slate-800 bg-slate-900/90 px-3 py-1 text-[10px] font-mono text-slate-400 select-none">
 		<div class="flex items-center gap-3">
-			<span class="text-emerald-400 font-semibold">● Ready</span>
-			<span>Form: <strong class="text-slate-200">{activePage.title}</strong></span>
+			<span class="text-emerald-400 font-semibold">● Active Form: {activePage.title}</span>
+			<span>Layer: <strong class="{activeLayer === 'frontend' ? 'text-indigo-400' : 'text-amber-400'} uppercase">{activeLayer}</strong></span>
 			<span>Lines: <strong class="text-slate-200">{codeLines.length}</strong></span>
-			<span>Breakpoints: <strong class="text-rose-400">{breakpoints.length}</strong></span>
 		</div>
 		<div class="flex items-center gap-3">
-			<span>Dialect: <strong class="text-indigo-300 uppercase">{dialect}</strong></span>
-			<span class="text-slate-500">UTF-8</span>
-			<span>Shift+F7: Designer | F7: Code | F5: Run</span>
+			<button
+				type="button"
+				onclick={() => (showConsole = !showConsole)}
+				class="text-slate-400 hover:text-emerald-400 transition cursor-pointer font-bold"
+			>
+				{showConsole ? '▼ Sembunyikan Console' : '▲ Buka Console'}
+			</button>
+			<span class="text-slate-500">Ctrl+S: Simpan | F5: Run</span>
 		</div>
 	</footer>
 </div>

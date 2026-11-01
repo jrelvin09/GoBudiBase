@@ -1068,11 +1068,6 @@
 					{appSlug}
 					onViewDesigner={() => (activeViewMode = 'designer')}
 					onRunApp={handleRunApp}
-					initialObject={codeTargetObject}
-					initialProcedure={codeTargetProcedure}
-					onSaveCode={(code, dialect) => {
-						console.log('Saved Code-Behind:', activePage.title, dialect);
-					}}
 				/>
 			{:else}
 				<!-- Canvas Header Status -->

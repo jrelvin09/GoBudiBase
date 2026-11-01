@@ -126,6 +126,7 @@ func main() {
 
 			r.Post("/pages/create", handlers.HandleCreateBuilderPage(pool))
 			r.Post("/pages/update", handlers.HandleUpdateBuilderPage(pool))
+			r.Post("/pages/code", handlers.HandleSavePageCode(pool))
 			r.Post("/pages/delete", handlers.HandleDeleteBuilderPage(pool))
 
 			r.Post("/components/create", handlers.HandleCreateBuilderComponent(pool))
