@@ -251,9 +251,24 @@
 	let wizardMode = $state<'blank' | 'auto-crud'>('blank');
 	let wizardTable = $state<string>('');
 
+	// Project Explorer quick filter & group accordion
+	let projectFilter = $state('');
+	let collapsedGroups = $state<Record<string, boolean>>({});
+
+	function toggleGroupCollapse(grp: string) {
+		collapsedGroups[grp] = !collapsedGroups[grp];
+	}
+
 	const formsByGroup = $derived.by(() => {
 		const groups: Record<string, { pg: RuntimePage; idx: number }[]> = {};
+		const filter = projectFilter.trim().toLowerCase();
 		(runtimeApp?.pages || []).forEach((pg, idx) => {
+			if (filter) {
+				const matchTitle = (pg.title || '').toLowerCase().includes(filter);
+				const matchSlug = (pg.slug || '').toLowerCase().includes(filter);
+				const matchGroup = (pg.group_name || '').toLowerCase().includes(filter);
+				if (!matchTitle && !matchSlug && !matchGroup) return;
+			}
 			const g = pg.group_name || 'Menu Utama';
 			if (!groups[g]) groups[g] = [];
 			groups[g].push({ pg, idx });
@@ -2065,69 +2080,102 @@
 						<span>Project1 ({runtimeApp?.app.slug || appSlug})</span>
 					</div>
 
+					<!-- Quick Search Filter for 161 Forms -->
+					<div class="my-1.5 px-0.5">
+						<div class="relative">
+							<input
+								type="text"
+								bind:value={projectFilter}
+								placeholder="Cari form & modul ({runtimeApp?.pages?.length || 0})..."
+								class="w-full bg-slate-950 text-slate-200 border border-slate-800 rounded px-2 py-1 pl-6 text-[10px] outline-none focus:border-emerald-500 font-sans"
+							/>
+							<Search class="h-3 w-3 text-slate-500 absolute left-1.5 top-1.5" />
+							{#if projectFilter}
+								<button
+									type="button"
+									onclick={() => (projectFilter = '')}
+									class="absolute right-1 top-0.5 text-slate-500 hover:text-white text-xs px-1"
+								>✕</button>
+							{/if}
+						</div>
+					</div>
+
 					<!-- Forms Branch Grouped by Menu Groups -->
-					<div class="pl-2 flex flex-col gap-1.5">
-						<div class="flex items-center gap-1 text-slate-400 font-semibold text-[11px]">
-							<ChevronDown class="h-3 w-3" />
-							<span>Menu & Forms ({runtimeApp?.pages?.length || 0})</span>
+					<div class="pl-1 flex flex-col gap-1.5">
+						<div class="flex items-center justify-between text-slate-400 font-semibold text-[11px] px-1">
+							<div class="flex items-center gap-1">
+								<ChevronDown class="h-3 w-3" />
+								<span>Menu & Forms ({runtimeApp?.pages?.length || 0})</span>
+							</div>
+							{#if projectFilter}
+								<span class="text-[9px] text-emerald-400 font-mono">Filter aktif</span>
+							{/if}
 						</div>
 
-						<div class="pl-2 flex flex-col gap-2">
+						<div class="flex flex-col gap-1.5">
 							{#each Object.entries(formsByGroup) as [groupName, groupPages]}
-								<div class="flex flex-col gap-1">
-									<div class="flex items-center justify-between text-slate-400 text-[10px] font-bold uppercase tracking-wider pr-1">
-										<div class="flex items-center gap-1 truncate">
+								{@const isGroupCollapsed = !!collapsedGroups[groupName] && !projectFilter}
+								<div class="flex flex-col gap-0.5">
+									<button
+										type="button"
+										onclick={() => toggleGroupCollapse(groupName)}
+										class="flex items-center justify-between text-slate-400 text-[10px] font-bold uppercase tracking-wider px-1.5 py-1 rounded hover:bg-slate-800 hover:text-slate-200 transition cursor-pointer w-full text-left"
+									>
+										<div class="flex items-center gap-1.5 truncate">
+											<ChevronRight class="h-3 w-3 text-slate-500 transition-transform {isGroupCollapsed ? '' : 'rotate-90'}" />
 											<Folder class="h-3 w-3 text-amber-500/80 shrink-0" />
 											<span class="truncate">{groupName}</span>
 										</div>
 										<span class="rounded bg-slate-800 px-1 py-0.2 text-[8px] font-mono text-slate-400 shrink-0">
 											{groupPages.length}
 										</span>
-									</div>
+									</button>
 
-									<div class="pl-2 flex flex-col gap-0.5 border-l border-slate-800/80 ml-1">
-										{#each groupPages as { pg, idx }}
-											{@const isActiveForm = activePageIndex === idx}
-											{@const isSubMenu = !!pg.parent_slug}
-											<div class="flex flex-col group/formitem {isSubMenu ? 'pl-2.5' : ''}">
-												<div class="flex items-center justify-between rounded px-2 py-1 transition {isActiveForm ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}">
-													<button
-														type="button"
-														onclick={() => {
-															activePageIndex = idx;
-															selectedComponentId = pg.components?.[0]?.id || null;
-														}}
-														class="flex items-center gap-1.5 truncate flex-1 text-left"
-													>
-														{#if isSubMenu}
-															<span class="text-teal-400 font-bold text-[10px]">â†³</span>
-														{/if}
-														<FileText class="h-3 w-3 shrink-0 {isSubMenu ? 'text-teal-400' : 'text-slate-400'}" />
-														<span class="truncate">frm_{pg.slug}</span>
-													</button>
-													<div class="flex items-center gap-1 shrink-0">
-														<span class="text-[9px] opacity-75">({pg.components?.length || 0})</span>
-														{#if runtimeApp && runtimeApp.pages.length > 1}
-															<button
-																type="button"
-																onclick={(e) => {
-																	e.stopPropagation();
-																	handleDeletePage(pg.id, pg.title);
-																}}
-																class="p-1 rounded transition text-rose-400/80 hover:text-white hover:bg-rose-600 cursor-pointer"
-																title="Hapus Form {pg.title}"
-															>
-																<Trash2 class="h-3 w-3" />
-															</button>
-														{/if}
+									{#if !isGroupCollapsed}
+										<div class="pl-2 flex flex-col gap-0.5 border-l border-slate-800/80 ml-2">
+											{#each groupPages as { pg, idx }}
+												{@const isActiveForm = activePageIndex === idx}
+												{@const isSubMenu = !!pg.parent_slug}
+												<div class="flex flex-col group/formitem {isSubMenu ? 'pl-2.5' : ''}">
+													<div class="flex items-center justify-between rounded px-2 py-1 transition {isActiveForm ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}">
+														<button
+															type="button"
+															onclick={() => {
+																activePageIndex = idx;
+																selectedComponentId = pg.components?.[0]?.id || null;
+															}}
+															class="flex items-center gap-1.5 truncate flex-1 text-left"
+															title={pg.title}
+														>
+															{#if isSubMenu}
+																<span class="text-teal-400 font-bold text-[10px]">↳</span>
+															{/if}
+															<FileText class="h-3 w-3 shrink-0 {isSubMenu ? 'text-teal-400' : 'text-slate-400'}" />
+															<span class="truncate">frm_{pg.slug}</span>
+														</button>
+														<div class="flex items-center gap-1 shrink-0">
+															<span class="text-[9px] opacity-75">({pg.components?.length || 0})</span>
+															{#if runtimeApp && runtimeApp.pages.length > 1}
+																<button
+																	type="button"
+																	onclick={(e) => {
+																		e.stopPropagation();
+																		handleDeletePage(pg.id, pg.title);
+																	}}
+																	class="p-1 rounded transition text-rose-400/80 hover:text-white hover:bg-rose-600 cursor-pointer"
+																	title="Hapus Form {pg.title}"
+																>
+																	<Trash2 class="h-3 w-3" />
+																</button>
+															{/if}
+														</div>
 													</div>
-												</div>
 
-												<!-- Components under Active Form -->
-												{#if isActiveForm && pg.components && pg.components.length > 0}
-													<div class="pl-4 flex flex-col gap-0.5 border-l border-slate-800 my-0.5">
-														{#each pg.components as comp}
-															{@const isCompSelected = selectedComponentId === comp.id}
+													<!-- Components under Active Form -->
+													{#if isActiveForm && pg.components && pg.components.length > 0}
+														<div class="pl-4 flex flex-col gap-0.5 border-l border-slate-800 my-0.5">
+															{#each pg.components as comp}
+																{@const isCompSelected = selectedComponentId === comp.id}
 															<button
 																type="button"
 																onclick={() => (selectedComponentId = comp.id)}
@@ -2146,6 +2194,7 @@
 											</div>
 										{/each}
 									</div>
+									{/if}
 								</div>
 							{/each}
 						</div>

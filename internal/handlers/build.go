@@ -436,16 +436,32 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
   <!-- MAIN APP CONTAINER -->
   <div class="flex-1 flex overflow-hidden">
     <!-- LEFT SIDEBAR: MENU & FORMS -->
-    <aside id="sidebar" class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 transition-all duration-200 overflow-y-auto">
+    <aside id="sidebar" class="w-72 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 transition-all duration-200 overflow-hidden">
       <div class="p-3 border-b border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-        <span>Navigasi Aplikasi</span>
-        <span class="bg-slate-800 px-1.5 py-0.2 rounded font-mono text-slate-400">%d Pages</span>
+        <span class="flex items-center gap-1.5 text-slate-300">
+          <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+          Navigasi Menu
+        </span>
+        <span class="bg-slate-800 px-1.5 py-0.5 rounded font-mono text-emerald-400 text-[10px]">%d Pages</span>
       </div>
-      <nav id="menu-container" class="flex-1 p-2 flex flex-col gap-1 text-xs">
+      <!-- Quick Filter -->
+      <div class="p-2 border-b border-slate-800/80 bg-slate-950/40">
+        <div class="relative">
+          <input
+            id="sidebar-search"
+            type="text"
+            placeholder="Cari menu & form..."
+            class="w-full bg-slate-950 text-slate-200 border border-slate-800 rounded px-2.5 py-1.5 pl-7 text-xs outline-none focus:border-emerald-500 placeholder-slate-500"
+          />
+          <svg class="w-3.5 h-3.5 text-slate-500 absolute left-2 top-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </div>
+      </div>
+      <nav id="menu-container" class="flex-1 p-2 flex flex-col gap-1 text-xs overflow-y-auto">
         <!-- Rendered dynamically -->
       </nav>
-      <div class="p-3 border-t border-slate-800 text-[10px] text-slate-500 font-mono text-center">
-        GoBudiBase Standalone Runner
+      <div class="p-2.5 border-t border-slate-800 text-[10px] text-slate-500 font-mono text-center flex items-center justify-between">
+        <span>GoBudiBase Standalone</span>
+        <span class="text-emerald-500 font-bold">Port %d</span>
       </div>
     </aside>
 
@@ -492,11 +508,26 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
       }
     };
 
+    let collapsedGroups = {};
+    window.toggleGroup = function(grp) {
+      collapsedGroups[grp] = !collapsedGroups[grp];
+      renderSidebar(window.location.hash.replace('#/', '') || DEFAULT_PAGE.slug);
+    };
+
     // Render Sidebar Menu
     function renderSidebar(activeSlug) {
       const container = document.getElementById('menu-container');
+      const searchEl = document.getElementById('sidebar-search');
+      const searchTerm = (searchEl ? searchEl.value : '').toLowerCase().trim();
+
       const groups = {};
       PAGES_DATA.forEach(p => {
+        if (searchTerm) {
+          const matchTitle = (p.title || '').toLowerCase().includes(searchTerm);
+          const matchSlug = (p.slug || '').toLowerCase().includes(searchTerm);
+          const matchGroup = (p.group_name || '').toLowerCase().includes(searchTerm);
+          if (!matchTitle && !matchSlug && !matchGroup) return;
+        }
         const grp = p.group_name || 'Menu Utama';
         if (!groups[grp]) groups[grp] = [];
         groups[grp].push(p);
@@ -504,19 +535,46 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
 
       let html = '';
       for (const [groupName, pages] of Object.entries(groups)) {
-        html += '<div class="mb-2">';
-        html += '<div class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">' + groupName + '</div>';
-        pages.forEach(p => {
-          const isActive = p.slug === activeSlug;
-          const activeClass = isActive ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800';
-          html += '<a href="#/' + p.slug + '" class="flex items-center gap-2 px-2.5 py-1.5 rounded transition text-xs ' + activeClass + '">';
-          html += '<span class="truncate">' + p.title + '</span>';
-          html += '</a>';
-        });
+        const isCollapsed = !!collapsedGroups[groupName] && !searchTerm;
+        html += '<div class="flex flex-col gap-0.5 mb-1.5">';
+        html += '<button type="button" onclick="window.toggleGroup(\'' + groupName.replace(/'/g, "\\'") + '\')" class="w-full flex items-center justify-between px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition cursor-pointer text-left">';
+        html += '<span class="flex items-center gap-1 truncate">';
+        html += '<svg class="w-3 h-3 text-slate-500 transition-transform ' + (isCollapsed ? '' : 'rotate-90') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+        html += '<span class="truncate">' + groupName + '</span>';
+        html += '</span>';
+        html += '<span class="bg-slate-800 px-1 py-0.2 rounded font-mono text-[9px] text-slate-400">' + pages.length + '</span>';
+        html += '</button>';
+
+        if (!isCollapsed) {
+          html += '<div class="flex flex-col gap-0.5 pl-2 border-l border-slate-800/80 ml-2">';
+          pages.forEach(p => {
+            const isActive = p.slug === activeSlug;
+            const isSub = !!p.parent_slug;
+            const activeClass = isActive ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800';
+            const indentClass = isSub ? 'pl-3 text-[11px]' : 'px-2 text-xs';
+            html += '<a href="#/' + p.slug + '" class="flex items-center gap-1.5 py-1.5 rounded transition ' + indentClass + ' ' + activeClass + '" title="' + p.title + '">';
+            if (isSub) {
+              html += '<span class="text-teal-400 font-bold text-[10px] shrink-0">↳</span>';
+            }
+            html += '<span class="truncate">' + p.title + '</span>';
+            html += '</a>';
+          });
+          html += '</div>';
+        }
         html += '</div>';
       }
       container.innerHTML = html;
     }
+
+    // Bind sidebar search event
+    setTimeout(() => {
+      const searchEl = document.getElementById('sidebar-search');
+      if (searchEl) {
+        searchEl.addEventListener('input', () => {
+          renderSidebar(window.location.hash.replace('#/', '') || DEFAULT_PAGE.slug);
+        });
+      }
+    }, 100);
 
     // Load Page into Viewport
     async function loadPage(slug) {
