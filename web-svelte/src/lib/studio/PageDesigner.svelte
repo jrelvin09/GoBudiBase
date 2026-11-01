@@ -10,6 +10,9 @@
 		deleteComponent,
 		updateComponent,
 		fetchSchemaTables,
+		buildApplication,
+		fetchBuildStatus,
+		type BuildAppResult,
 		type RuntimeApp,
 		type RuntimePage,
 		type RuntimeComponent,
@@ -73,7 +76,9 @@
 		Blocks,
 		Upload,
 		Sparkles,
-		FileCode
+		FileCode,
+		Package,
+		ExternalLink
 	} from 'lucide-svelte';
 	import { catalog } from '$lib/kit/catalog';
 	import { catalogTitle } from '$lib/kit/catalog-title';
@@ -153,6 +158,52 @@
 	// Visual Basic Form Window State
 	let snapToGrid = $state(true);
 
+	// Standalone Build & Output Configuration State
+	let showBuildModal = $state(false);
+	let buildOutputDir = $state('./build_output/gopimsbase');
+	let buildPort = $state(8086);
+	let buildAutoServe = $state(true);
+	let isBuilding = $state(false);
+	let buildResult = $state<BuildAppResult | null>(null);
+	let buildError = $state<string | null>(null);
+	let activeRunnerUrl = $state<string | null>(null);
+
+	async function checkRunnerStatus() {
+		try {
+			const status = await fetchBuildStatus(buildPort);
+			if (status && status.is_active) {
+				activeRunnerUrl = status.url;
+			}
+		} catch (e) {
+			// ignore
+		}
+	}
+
+	async function handleBuildProject(launchTab: boolean = false) {
+		isBuilding = true;
+		buildError = null;
+		try {
+			await handleSaveAll();
+			const res = await buildApplication({
+				app_slug: runtimeApp?.app.slug || appSlug,
+				output_dir: buildOutputDir,
+				port: Number(buildPort),
+				serve: buildAutoServe
+			});
+			buildResult = res;
+			if (res.status?.is_active) {
+				activeRunnerUrl = res.url;
+				if (launchTab) {
+					window.open(res.url, '_blank');
+				}
+			}
+		} catch (err: any) {
+			buildError = err.message || 'Proses build gagal';
+		} finally {
+			isBuilding = false;
+		}
+	}
+
 	// Visual Basic View Mode State: 'designer' (Shift+F7) vs 'code' (F7)
 	let activeViewMode = $state<'designer' | 'code'>('designer');
 	let codeTargetObject = $state<string>('(General)');
@@ -223,6 +274,7 @@
 
 	onMount(() => {
 		loadApp();
+		checkRunnerStatus();
 
 		function handleKeyDown(e: KeyboardEvent) {
 			if (e.key === 'F7' && !e.shiftKey) {
@@ -234,6 +286,9 @@
 			} else if (e.key === 'F5' && !e.ctrlKey) {
 				e.preventDefault();
 				handleRunApp();
+			} else if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+				e.preventDefault();
+				showBuildModal = true;
 			} else if (e.key === 'F4') {
 				e.preventDefault();
 				if (!showProperties) {
@@ -807,6 +862,7 @@
 					<button type="button" class="hover:text-slate-200">Format</button>
 					<button type="button" class="hover:text-slate-200">Debug</button>
 					<button type="button" onclick={handleRunApp} class="hover:text-emerald-400 font-semibold">Run (F5)</button>
+					<button type="button" onclick={() => (showBuildModal = true)} class="hover:text-sky-300 font-semibold text-sky-400">Make Project... (Ctrl+B)</button>
 					<button type="button" class="hover:text-slate-200">Tools</button>
 					<button type="button" class="hover:text-slate-200">Window</button>
 					<button type="button" class="hover:text-slate-200">Help</button>
@@ -879,6 +935,18 @@
 					title="End / Break Execution"
 				>
 					<Square class="h-3.5 w-3.5" />
+				</button>
+
+				<!-- Make / Build Application Button -->
+				<button
+					type="button"
+					onclick={() => (showBuildModal = true)}
+					class="flex items-center gap-1.5 rounded border border-sky-600/50 bg-sky-950/40 px-2.5 py-1 font-bold text-xs text-sky-300 shadow hover:bg-sky-900/60 transition cursor-pointer"
+					title="Build ke Output Dir & Host di Port Dedicated (Ctrl+B)"
+				>
+					<Package class="h-3.5 w-3.5 text-sky-400" />
+					<span>Build</span>
+					<span class="text-[9px] px-1 py-0.2 rounded font-mono bg-sky-500/20 text-sky-300">:{buildPort}</span>
 				</button>
 
 				<div class="h-4 w-px bg-slate-800 mx-0.5"></div>
@@ -2986,6 +3054,19 @@
 					<span>Reset Layout</span>
 				</button>
 			{/if}
+			{#if activeRunnerUrl}
+				<a
+					href={activeRunnerUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-sky-400 hover:text-sky-300 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+					title="Buka aplikasi hasil build di port {buildPort}"
+				>
+					<span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+					<span>Port :{buildPort} (Live)</span>
+					<ExternalLink class="h-2.5 w-2.5" />
+				</a>
+			{/if}
 			<span>Controls: {activePage?.components?.length || 0}</span>
 			<span>Snap: {snapToGrid ? '16x16 px' : 'Off'}</span>
 			<span class="text-slate-300">PostgreSQL 17.11 (Pool: 30)</span>
@@ -3138,6 +3219,133 @@
 				</div>
 			</form>
 			{/if}
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Build / Make Standalone Application -->
+{#if showBuildModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+		<div class="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl flex flex-col gap-4 text-xs">
+			<div class="flex items-center justify-between border-b border-slate-800 pb-3">
+				<h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+					<Package class="h-4 w-4 text-sky-400" />
+					<span>Make Application / Build Standalone Project</span>
+				</h3>
+				<button type="button" onclick={() => (showBuildModal = false)} class="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white">&times;</button>
+			</div>
+
+			<div class="rounded-lg border border-sky-800/40 bg-sky-950/25 p-3 text-sky-200 text-[11px] leading-relaxed">
+				<strong>Mekanisme Build:</strong> Form Designer dan Code Behind (HTML/CSS/JS) di-compile menjadi file fisik mandiri di <strong>Output Directory</strong>, dan secara otomatis dijalankan pada <strong>HTTP Port dedicated</strong> terpisah dari Studio.
+			</div>
+
+			<!-- Form Inputs -->
+			<div class="flex flex-col gap-3">
+				<div class="flex flex-col gap-1">
+					<label for="build-output-dir" class="font-semibold text-slate-300 flex items-center justify-between">
+						<span>Output Directory (Folder Target)</span>
+						<span class="text-[10px] text-slate-500 font-mono">Physical Disk Path</span>
+					</label>
+					<input
+						id="build-output-dir"
+						type="text"
+						bind:value={buildOutputDir}
+						placeholder="./build_output/gopimsbase"
+						class="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-200 font-mono text-xs focus:border-sky-500 focus:outline-none"
+					/>
+					<span class="text-[10px] text-slate-500">Contoh: <code>./build_output/{runtimeApp?.app.slug || appSlug}</code> atau path absolut disk Anda.</span>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div class="flex flex-col gap-1">
+						<label for="build-port" class="font-semibold text-slate-300">Target HTTP Port</label>
+						<input
+							id="build-port"
+							type="number"
+							bind:value={buildPort}
+							placeholder="8086"
+							class="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-200 font-mono text-xs focus:border-sky-500 focus:outline-none"
+						/>
+						<span class="text-[10px] text-slate-500">Port server aplikasi mandiri (default: 8086)</span>
+					</div>
+
+					<div class="flex flex-col justify-end pb-2">
+						<label class="flex items-center gap-2 text-slate-300 cursor-pointer font-semibold">
+							<input type="checkbox" bind:checked={buildAutoServe} class="accent-sky-500 rounded" />
+							<span>Jalankan Server di Port</span>
+						</label>
+						<span class="text-[10px] text-slate-500 mt-1">Host live hasil build di port target</span>
+					</div>
+				</div>
+			</div>
+
+			{#if buildError}
+				<div class="p-3 rounded-lg bg-rose-950/40 border border-rose-800/60 text-rose-300 text-[11px]">
+					<strong>Build Error:</strong> {buildError}
+				</div>
+			{/if}
+
+			{#if buildResult}
+				<div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 flex flex-col gap-2 text-[11px]">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-1.5 font-bold">
+							<CheckCircle2 class="h-4 w-4 text-emerald-400 shrink-0" />
+							<span>{buildResult.message}</span>
+						</div>
+						<span class="font-mono text-[10px] bg-emerald-900/60 px-1.5 py-0.5 rounded text-emerald-200 shrink-0">
+							{buildResult.file_count} files
+						</span>
+					</div>
+					<div class="flex flex-col gap-1 font-mono text-[10px] text-slate-300 bg-slate-950/60 p-2 rounded border border-slate-800/60">
+						<div>Folder: <span class="text-sky-300 break-all">{buildResult.output_dir}</span></div>
+						<div>URL Port: <span class="text-emerald-400 font-bold">{buildResult.url}</span></div>
+					</div>
+					{#if buildResult.status?.is_active}
+						<div class="flex items-center justify-between pt-1">
+							<span class="text-slate-300">Aplikasi aktif & siap diakses:</span>
+							<a
+								href={buildResult.url}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition"
+							>
+								<span>Buka di Port {buildResult.port}</span>
+								<ExternalLink class="h-3 w-3" />
+							</a>
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			<!-- Modal Footer Action Buttons -->
+			<div class="flex items-center justify-between border-t border-slate-800 pt-3">
+				<button
+					type="button"
+					onclick={() => (showBuildModal = false)}
+					class="rounded px-3 py-1.5 font-semibold text-slate-400 hover:bg-slate-800 hover:text-white"
+				>
+					Tutup
+				</button>
+				<div class="flex items-center gap-2">
+					<button
+						type="button"
+						onclick={() => handleBuildProject(false)}
+						disabled={isBuilding}
+						class="rounded border border-slate-700 bg-slate-800 px-3 py-1.5 font-bold text-slate-200 hover:bg-slate-700 transition disabled:opacity-50 cursor-pointer"
+					>
+						{isBuilding ? 'Sedang Build...' : 'Build Files Saja'}
+					</button>
+					<button
+						type="button"
+						onclick={() => handleBuildProject(true)}
+						disabled={isBuilding}
+						class="flex items-center gap-1.5 rounded bg-sky-600 px-4 py-1.5 font-bold text-white shadow-lg shadow-sky-600/30 hover:bg-sky-500 transition disabled:opacity-50 cursor-pointer"
+					>
+						<Package class="h-3.5 w-3.5" />
+						<span>{isBuilding ? 'Memproses Build...' : `Build & Buka Port ${buildPort}`}</span>
+					</button>
+				</div>
+			</div>
 		</div>
 	</div>
 {/if}

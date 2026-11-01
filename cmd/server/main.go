@@ -60,6 +60,7 @@ func main() {
 	})
 
 	// REST RPC Routes (/api/v1)
+	mainRouter := r
 	r.Route("/api/v1", func(r chi.Router) {
 		// Authentication endpoint for Harvest Cloud PIMS
 		r.Post("/auth/login", func(w http.ResponseWriter, r *http.Request) {
@@ -139,6 +140,10 @@ func main() {
 			r.Post("/schema/columns", handlers.HandleGetTableColumns(pool))
 			r.Post("/query/execute", handlers.HandleExecuteBuilderQuery(pool))
 			r.Post("/batch", handlers.HandleBatchOperations(pool))
+
+			// Standalone Build & Port Runner Endpoints
+			r.Post("/build", handlers.HandleBuildApp(pool, mainRouter))
+			r.Get("/build/status", handlers.HandleGetBuildStatus())
 		})
 
 		// Generic Resource REST for Interactive Grid & Reports

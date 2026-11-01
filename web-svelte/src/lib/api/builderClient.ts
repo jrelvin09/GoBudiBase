@@ -310,3 +310,53 @@ export async function executeBatch(table: string, ops: BatchOperation[]): Promis
 	}
 	return res.json();
 }
+
+export interface BuildAppOptions {
+	app_slug: string;
+	output_dir: string;
+	port: number;
+	serve?: boolean;
+}
+
+export interface BuildAppResult {
+	success: boolean;
+	message: string;
+	app_slug: string;
+	app_name: string;
+	output_dir: string;
+	port: number;
+	url: string;
+	file_count: number;
+	pages_built: number;
+	files: string[];
+	built_at: string;
+	status: {
+		port: number;
+		app_slug: string;
+		app_name: string;
+		output_dir: string;
+		url: string;
+		built_at: string;
+		is_active: boolean;
+	};
+}
+
+export async function buildApplication(opts: BuildAppOptions): Promise<BuildAppResult> {
+	const res = await fetch(`${API_BUILDER}/build`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(opts)
+	});
+	if (!res.ok) {
+		const err = await res.json().catch(() => ({ error: 'Proses build gagal' }));
+		throw new Error(err.error || 'Proses build gagal');
+	}
+	return res.json();
+}
+
+export async function fetchBuildStatus(port?: number): Promise<any> {
+	const query = port ? `?port=${port}` : '';
+	const res = await fetch(`${API_BUILDER}/build/status${query}`);
+	if (!res.ok) return null;
+	return res.json();
+}
