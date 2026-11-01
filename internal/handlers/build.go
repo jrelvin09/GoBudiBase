@@ -508,10 +508,46 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
       }
     };
 
+    function getIconSvg(name) {
+      switch ((name || '').toLowerCase()) {
+        case 'users':
+        case 'user':
+          return '<svg class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+        case 'folder':
+        case 'foldertree':
+          return '<svg class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+        case 'checksquare':
+        case 'check':
+          return '<svg class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
+        case 'gitfork':
+        case 'workflow':
+          return '<svg class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/><path d="M12 12v3"/></svg>';
+        case 'key':
+        case 'keyround':
+          return '<svg class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 2-2 2m-6 6 7 7-3 3-7-7"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3"/></svg>';
+        case 'home':
+        case 'dashboard':
+          return '<svg class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
+        case 'calendar':
+          return '<svg class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+        case 'settings':
+          return '<svg class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+        default:
+          return '<svg class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+      }
+    }
+
     let collapsedGroups = {};
     window.toggleGroup = function(grp) {
-      collapsedGroups[grp] = !collapsedGroups[grp];
-      renderSidebar(window.location.hash.replace('#/', '') || DEFAULT_PAGE.slug);
+      const activeSlug = window.location.hash.replace('#/', '') || DEFAULT_PAGE.slug;
+      if (collapsedGroups[grp] === undefined) {
+        const pages = PAGES_DATA.filter(p => (p.group_name || 'Menu Utama') === grp);
+        const hasActive = pages.some(p => p.slug === activeSlug);
+        collapsedGroups[grp] = hasActive ? true : false;
+      } else {
+        collapsedGroups[grp] = !collapsedGroups[grp];
+      }
+      renderSidebar(activeSlug);
     };
 
     // Render Sidebar Menu
@@ -535,28 +571,44 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
 
       let html = '';
       for (const [groupName, pages] of Object.entries(groups)) {
-        const isCollapsed = !!collapsedGroups[groupName] && !searchTerm;
-        html += '<div class="flex flex-col gap-0.5 mb-1.5">';
-        html += '<button type="button" onclick="window.toggleGroup(\'' + groupName.replace(/'/g, "\\'") + '\')" class="w-full flex items-center justify-between px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition cursor-pointer text-left">';
-        html += '<span class="flex items-center gap-1 truncate">';
-        html += '<svg class="w-3 h-3 text-slate-500 transition-transform ' + (isCollapsed ? '' : 'rotate-90') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+        const hasActive = pages.some(p => p.slug === activeSlug);
+        let isCollapsed = collapsedGroups[groupName];
+        if (isCollapsed === undefined) {
+          isCollapsed = !hasActive && !searchTerm;
+        }
+
+        let grpIcon = 'settings';
+        const gLow = groupName.toLowerCase();
+        if (gLow.includes('dashboard')) grpIcon = 'home';
+        else if (gLow.includes('transaction')) grpIcon = 'calendar';
+        else if (gLow.includes('integrations')) grpIcon = 'foldertree';
+        else if (gLow.includes('hcm') || gLow.includes('workforce')) grpIcon = 'users';
+        else if (gLow.includes('report') || gLow.includes('laporan')) grpIcon = 'folder';
+
+        html += '<div class="flex flex-col gap-0.5 mb-1">';
+        html += '<button type="button" onclick="window.toggleGroup(\'' + groupName.replace(/'/g, "\\'") + '\')" class="w-full flex items-center justify-between px-2.5 py-2 text-xs font-semibold ' + (hasActive ? 'text-white bg-slate-800/80' : 'text-slate-300 hover:text-white hover:bg-slate-800/50') + ' rounded-lg transition cursor-pointer text-left">';
+        html += '<span class="flex items-center gap-2 truncate">';
+        html += getIconSvg(grpIcon);
         html += '<span class="truncate">' + groupName + '</span>';
         html += '</span>';
-        html += '<span class="bg-slate-800 px-1 py-0.2 rounded font-mono text-[9px] text-slate-400">' + pages.length + '</span>';
+        html += '<div class="flex items-center gap-1.5">';
+        html += '<span class="bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[10px] text-slate-400">' + pages.length + '</span>';
+        html += '<svg class="w-3.5 h-3.5 text-slate-400 transition-transform ' + (isCollapsed ? '' : 'rotate-90') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+        html += '</div>';
         html += '</button>';
 
         if (!isCollapsed) {
-          html += '<div class="flex flex-col gap-0.5 pl-2 border-l border-slate-800/80 ml-2">';
+          html += '<div class="flex flex-col gap-0.5 pl-3 border-l border-slate-800/80 ml-3.5 my-1">';
           pages.forEach(p => {
             const isActive = p.slug === activeSlug;
             const isSub = !!p.parent_slug;
-            const activeClass = isActive ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800';
-            const indentClass = isSub ? 'pl-3 text-[11px]' : 'px-2 text-xs';
-            html += '<a href="#/' + p.slug + '" class="flex items-center gap-1.5 py-1.5 rounded transition ' + indentClass + ' ' + activeClass + '" title="' + p.title + '">';
-            if (isSub) {
-              html += '<span class="text-teal-400 font-bold text-[10px] shrink-0">↳</span>';
-            }
-            html += '<span class="truncate">' + p.title + '</span>';
+            const activeClass = isActive 
+              ? 'bg-sky-600 text-white font-semibold shadow-xs ring-1 ring-sky-400/30' 
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/70';
+            const indentClass = isSub ? 'pl-3 text-[11px]' : 'px-2.5 text-xs';
+            html += '<a href="#/' + p.slug + '" class="group flex items-center gap-2 py-1.5 rounded-lg transition ' + indentClass + ' ' + activeClass + '" title="' + p.title + '">';
+            html += getIconSvg(p.icon);
+            html += '<span class="truncate flex-1">' + p.title + '</span>';
             html += '</a>';
           });
           html += '</div>';
