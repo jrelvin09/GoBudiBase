@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { PimsNavNode, PimsUser } from './types';
+	import { fetchRuntimeApp, type RuntimePage } from '$lib/api/builderClient';
 	import navNodesRaw from '$lib/assets/pims_nav_tree.json';
 	import PimsDashboard from './PimsDashboard.svelte';
 	import PimsGridPage from './PimsGridPage.svelte';
@@ -121,6 +122,40 @@
 	function toggleFolder(label: string) {
 		expandedFolders[label] = !expandedFolders[label];
 	}
+
+	let runtimePages = $state<RuntimePage[]>([]);
+
+	onMount(async () => {
+		try {
+			const app = await fetchRuntimeApp('gopimsbase');
+			if (app && app.pages) {
+				runtimePages = app.pages;
+			}
+		} catch (e) {
+			console.warn('Could not load runtime pages for portal:', e);
+		}
+	});
+
+	function findCustomPage(label: string): RuntimePage | null {
+		if (!label || runtimePages.length === 0) return null;
+		const l = label.toLowerCase();
+		return (
+			runtimePages.find((p) => {
+				const pt = p.title.toLowerCase();
+				const ps = p.slug.toLowerCase();
+				if (pt === l || pt.includes(l) || l.includes(pt)) return true;
+				if (l === 'setup informasi user' && ps === 'setup-user-informations') return true;
+				if (l === 'setup menu user' && ps === 'setup-user-menus') return true;
+				if (l === 'setup akses halaman' && ps === 'role-management') return true;
+				if (l === 'setup approval hierarchy' && ps === 'approval-hierarchy') return true;
+				if (l === 'reset password' && ps === 'reset-password') return true;
+				if (l === 'dashboard' && ps === 'dashboard') return true;
+				return false;
+			}) || null
+		);
+	}
+
+	const activeCustomPage = $derived.by(() => findCustomPage(selectedNode.label));
 
 	function handleSelectNode(node: PimsNavNode) {
 		selectedNode = node;
@@ -490,8 +525,15 @@
 				</div>
 			</div>
 
-			<!-- Dynamic Content: Dashboard, Konfigurasi Setup, or Interactive Grid -->
-			{#if selectedNode.label === 'Dashboard'}
+			<!-- Dynamic Content: Custom Code-Behind HTML or Component Fallback -->
+			{#if activeCustomPage && activeCustomPage.custom_html && activeCustomPage.custom_html.trim() !== ''}
+				<div class="pims-dynamic-custom-canvas w-full">
+					{#if activeCustomPage.custom_css}
+						{@html `<style id="portal-style-${activeCustomPage.slug}">${activeCustomPage.custom_css}</style>`}
+					{/if}
+					{@html activeCustomPage.custom_html}
+				</div>
+			{:else if selectedNode.label === 'Dashboard'}
 				<PimsDashboard onSelectMenu={handleSelectMenuByLabel} />
 			{:else if selectedNode.label === 'Konfigurasi Setup'}
 				<KonfigurasiSetupHub onSelectSubmenu={handleSelectMenuByLabel} />

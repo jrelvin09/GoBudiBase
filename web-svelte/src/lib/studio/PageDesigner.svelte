@@ -5,6 +5,7 @@
 		createNewPage,
 		updatePage,
 		deletePage,
+		savePageCode,
 		createComponent,
 		deleteComponent,
 		updateComponent,
@@ -576,6 +577,17 @@
 		}
 		if (activePage) {
 			await handleSavePageProperty();
+			try {
+				await savePageCode({
+					page_id: activePage.id,
+					script_front: activePage.script_front || '',
+					script_back: activePage.script_back || '',
+					custom_html: activePage.custom_html || '',
+					custom_css: activePage.custom_css || ''
+				});
+			} catch (err) {
+				console.warn('Failed to save page code during handleSaveAll:', err);
+			}
 		}
 	}
 

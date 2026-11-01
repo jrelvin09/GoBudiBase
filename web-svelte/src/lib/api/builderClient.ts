@@ -95,7 +95,9 @@ const API_BUILDER = '/api/v1/builder';
 
 export async function fetchRuntimeApp(slug: string = 'gopimsbase'): Promise<RuntimeApp> {
 	try {
-		const res = await fetch(`${API_BUILDER}/runtime?slug=${encodeURIComponent(slug)}`);
+		const res = await fetch(`${API_BUILDER}/runtime?slug=${encodeURIComponent(slug)}&_t=${Date.now()}`, {
+			cache: 'no-store'
+		});
 		if (res.ok) {
 			const data = await res.json();
 			if (data && data.app && data.pages && data.pages.length > 0) {

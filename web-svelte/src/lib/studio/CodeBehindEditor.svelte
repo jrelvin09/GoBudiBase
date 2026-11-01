@@ -688,15 +688,48 @@ table tr:hover td {
 }`;
 	}
 
+	let lastLoadedPageId = $state<number | null>(null);
+	let autoSaveTimer: any = null;
+
 	// Initialize code when activePage changes
 	$effect(() => {
-		if (activePage) {
-			scriptFront = activePage.script_front || generateDefaultFrontEnd(activePage);
-			scriptBack = activePage.script_back || generateDefaultBackEnd(activePage);
-			customHtml = activePage.custom_html || generateDefaultHtml(activePage);
-			customCss = activePage.custom_css || generateDefaultCss(activePage);
+		if (activePage && activePage.id !== lastLoadedPageId) {
+			lastLoadedPageId = activePage.id;
+			scriptFront = activePage.script_front ?? generateDefaultFrontEnd(activePage);
+			scriptBack = activePage.script_back ?? generateDefaultBackEnd(activePage);
+			customHtml = activePage.custom_html ?? generateDefaultHtml(activePage);
+			customCss = activePage.custom_css ?? generateDefaultCss(activePage);
 		}
 	});
+
+	// Auto-sync in-memory state & debounced save to database
+	function triggerAutoSave() {
+		if (!activePage) return;
+		activePage.script_front = scriptFront;
+		activePage.script_back = scriptBack;
+		activePage.custom_html = customHtml;
+		activePage.custom_css = customCss;
+
+		if (autoSaveTimer) clearTimeout(autoSaveTimer);
+		autoSaveTimer = setTimeout(async () => {
+			if (!activePage) return;
+			try {
+				await savePageCode({
+					page_id: activePage.id,
+					script_front: scriptFront,
+					script_back: scriptBack,
+					custom_html: customHtml,
+					custom_css: customCss
+				});
+				saveSuccess = true;
+				setTimeout(() => {
+					saveSuccess = false;
+				}, 1500);
+			} catch (e) {
+				console.error('Auto-save Code Behind failed:', e);
+			}
+		}, 600);
+	}
 
 	// Split code into lines for syntax line numbering
 	let currentCode = $derived.by(() => {
@@ -713,6 +746,7 @@ table tr:hover td {
 	// Save Code Behind to Backend
 	async function handleSave() {
 		if (!activePage) return;
+		if (autoSaveTimer) clearTimeout(autoSaveTimer);
 		isSaving = true;
 		try {
 			await savePageCode({
@@ -736,6 +770,12 @@ table tr:hover td {
 		} finally {
 			isSaving = false;
 		}
+	}
+
+	async function handleLaunchApp() {
+		if (autoSaveTimer) clearTimeout(autoSaveTimer);
+		await handleSave();
+		onRunApp?.();
 	}
 
 	function handleCopy() {
@@ -789,8 +829,21 @@ table tr:hover td {
 			}
 			customCss += snippet;
 		}
+		triggerAutoSave();
 	}
 </script>
+
+<svelte:window
+	onkeydown={async (e) => {
+		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+			e.preventDefault();
+			await handleSave();
+		} else if (e.key === 'F5') {
+			e.preventDefault();
+			await handleLaunchApp();
+		}
+	}}
+/>
 
 <!-- ========================================================================= -->
 <!-- 4-PILLAR CODE BEHIND: FRONTEND, BACKEND, HTML, CSS                        -->
@@ -847,9 +900,9 @@ table tr:hover td {
 				{#if onRunApp}
 					<button
 						type="button"
-						onclick={onRunApp}
+						onclick={handleLaunchApp}
 						class="flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1 text-white font-bold hover:bg-blue-500 transition cursor-pointer shadow"
-						title="Buka Runtime Aplikasi (F5)"
+						title="Simpan & Buka Runtime Aplikasi (F5)"
 					>
 						<Zap class="h-3.5 w-3.5 fill-current" />
 						<span class="hidden sm:inline">Launch App (F5)</span>
@@ -1071,6 +1124,7 @@ table tr:hover td {
 			{#if activeLayer === 'frontend'}
 				<textarea
 					bind:value={scriptFront}
+					oninput={triggerAutoSave}
 					spellcheck="false"
 					class="w-full h-full bg-transparent text-indigo-100 outline-none resize-none font-mono text-[12px] leading-5 whitespace-pre selection:bg-indigo-600 selection:text-white"
 					placeholder="// Ketik logika kustom FrontEnd (TypeScript / JavaScript) di sini..."
@@ -1078,6 +1132,7 @@ table tr:hover td {
 			{:else if activeLayer === 'backend'}
 				<textarea
 					bind:value={scriptBack}
+					oninput={triggerAutoSave}
 					spellcheck="false"
 					class="w-full h-full bg-transparent text-amber-100 outline-none resize-none font-mono text-[12px] leading-5 whitespace-pre selection:bg-amber-600 selection:text-white"
 					placeholder="-- Ketik logika kustom BackEnd (PostgreSQL PL/pgSQL / Go Server Hook) di sini..."
@@ -1085,6 +1140,7 @@ table tr:hover td {
 			{:else if activeLayer === 'html'}
 				<textarea
 					bind:value={customHtml}
+					oninput={triggerAutoSave}
 					spellcheck="false"
 					class="w-full h-full bg-transparent text-cyan-100 outline-none resize-none font-mono text-[12px] leading-5 whitespace-pre selection:bg-cyan-600 selection:text-white"
 					placeholder="<!-- Ketik kustomisasi DOM / HTML Template di sini... -->"
@@ -1092,6 +1148,7 @@ table tr:hover td {
 			{:else if activeLayer === 'css'}
 				<textarea
 					bind:value={customCss}
+					oninput={triggerAutoSave}
 					spellcheck="false"
 					class="w-full h-full bg-transparent text-pink-100 outline-none resize-none font-mono text-[12px] leading-5 whitespace-pre selection:bg-pink-600 selection:text-white"
 					placeholder="/* Ketik kustomisasi CSS Stylesheet & Theme di sini... */"
