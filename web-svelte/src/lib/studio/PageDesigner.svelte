@@ -33,6 +33,7 @@
 		FileSignature,
 		ChevronRight,
 		ChevronDown,
+		ChevronUp,
 		ArrowLeft,
 		CheckCircle2,
 		RefreshCw,
@@ -101,9 +102,41 @@
 	let toolboxSearch = $state('');
 	let showToolbox = $state<boolean>(true);
 	let toolboxExpanded = $state<boolean>(false);
+
+	// Visual Basic Project Explorer State
+	let showProjectExplorer = $state<boolean>(true);
+	let projectExplorerCollapsed = $state<boolean>(false);
+
+	// Visual Basic Properties Window State
+	let showProperties = $state<boolean>(true);
+	let propertiesCollapsed = $state<boolean>(false);
+
+	// Right Sidebar Width State (Expand/Collapse width)
+	let rightPaneExpanded = $state<boolean>(false);
+
+	const leftColSpan = $derived.by(() => {
+		if (!showToolbox) return 0;
+		return toolboxExpanded ? 4 : 3;
+	});
+
+	const rightColSpan = $derived.by(() => {
+		if (!showProjectExplorer && !showProperties) return 0;
+		return rightPaneExpanded ? 4 : 3;
+	});
+
 	const centerColSpan = $derived.by(() => {
-		if (!showToolbox) return 'col-span-9';
-		return toolboxExpanded ? 'col-span-5' : 'col-span-6';
+		const cols = 12 - leftColSpan - rightColSpan;
+		switch (cols) {
+			case 12: return 'col-span-12';
+			case 10: return 'col-span-10';
+			case 9: return 'col-span-9';
+			case 8: return 'col-span-8';
+			case 7: return 'col-span-7';
+			case 6: return 'col-span-6';
+			case 5: return 'col-span-5';
+			case 4: return 'col-span-4';
+			default: return 'col-span-6';
+		}
 	});
 
 	// Visual Basic Property Grid State
@@ -201,6 +234,22 @@
 			} else if (e.key === 'F5' && !e.ctrlKey) {
 				e.preventDefault();
 				handleRunApp();
+			} else if (e.key === 'F4') {
+				e.preventDefault();
+				if (!showProperties) {
+					showProperties = true;
+					propertiesCollapsed = false;
+				} else {
+					propertiesCollapsed = !propertiesCollapsed;
+				}
+			} else if ((e.ctrlKey || e.altKey) && (e.key === 'r' || e.key === 'R')) {
+				e.preventDefault();
+				if (!showProjectExplorer) {
+					showProjectExplorer = true;
+					projectExplorerCollapsed = false;
+				} else {
+					projectExplorerCollapsed = !projectExplorerCollapsed;
+				}
 			}
 		}
 
@@ -874,6 +923,48 @@
 					</span>
 				</button>
 
+				<!-- Visual Basic Project Explorer Toggle Button -->
+				<button
+					type="button"
+					onclick={() => {
+						if (!showProjectExplorer) {
+							showProjectExplorer = true;
+							projectExplorerCollapsed = false;
+						} else {
+							showProjectExplorer = false;
+						}
+					}}
+					class="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold transition border cursor-pointer {showProjectExplorer ? 'border-amber-600/40 bg-amber-950/40 text-amber-300' : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'}"
+					title={showProjectExplorer ? 'Sembunyikan Project Explorer (Ctrl+R)' : 'Tampilkan Project Explorer (Ctrl+R)'}
+				>
+					<FolderTree class="h-3.5 w-3.5 text-amber-400" />
+					<span>Project</span>
+					<span class="text-[9px] px-1 py-0.2 rounded font-mono {showProjectExplorer ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-400'}">
+						{showProjectExplorer ? (projectExplorerCollapsed ? 'MIN' : 'ON') : 'OFF'}
+					</span>
+				</button>
+
+				<!-- Visual Basic Properties Toggle Button -->
+				<button
+					type="button"
+					onclick={() => {
+						if (!showProperties) {
+							showProperties = true;
+							propertiesCollapsed = false;
+						} else {
+							showProperties = false;
+						}
+					}}
+					class="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold transition border cursor-pointer {showProperties ? 'border-indigo-600/40 bg-indigo-950/40 text-indigo-300' : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'}"
+					title={showProperties ? 'Sembunyikan Properties Window (F4)' : 'Tampilkan Properties Window (F4)'}
+				>
+					<Sliders class="h-3.5 w-3.5 text-indigo-400" />
+					<span>Properties</span>
+					<span class="text-[9px] px-1 py-0.2 rounded font-mono {showProperties ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-400'}">
+						{showProperties ? (propertiesCollapsed ? 'MIN' : 'ON') : 'OFF'}
+					</span>
+				</button>
+
 				<div class="h-4 w-px bg-slate-800 mx-0.5"></div>
 
 				<!-- Active Form Dropdown -->
@@ -1169,6 +1260,28 @@
 					</div>
 				</div>
 				<div class="flex items-center gap-2 font-mono text-[10px] text-slate-500">
+					{#if !showProjectExplorer}
+						<button
+							type="button"
+							onclick={() => { showProjectExplorer = true; projectExplorerCollapsed = false; }}
+							class="flex items-center gap-1 rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-[10px] font-semibold text-amber-400 hover:bg-slate-700 transition cursor-pointer shadow-sm"
+							title="Buka / Tampilkan kembali Project Explorer (Ctrl+R)"
+						>
+							<FolderTree class="h-3 w-3" />
+							<span>+ Project</span>
+						</button>
+					{/if}
+					{#if !showProperties}
+						<button
+							type="button"
+							onclick={() => { showProperties = true; propertiesCollapsed = false; }}
+							class="flex items-center gap-1 rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-[10px] font-semibold text-indigo-400 hover:bg-slate-700 transition cursor-pointer shadow-sm"
+							title="Buka / Tampilkan kembali Properties Window (F4)"
+						>
+							<Sliders class="h-3 w-3" />
+							<span>+ Properties</span>
+						</button>
+					{/if}
 					<span>Snap:</span>
 					<span class="font-bold {snapToGrid ? 'text-emerald-400' : 'text-slate-500'}">{snapToGrid ? '16px Grid' : 'Off'}</span>
 				</div>
@@ -1759,15 +1872,21 @@
 		<!-- ============================================================== -->
 		<!-- RIGHT: PROJECT EXPLORER (Top) & PROPERTIES WINDOW (Bottom)     -->
 		<!-- ============================================================== -->
-		<aside class="col-span-3 flex flex-col gap-1.5 overflow-hidden">
-			<!-- TOP: VISUAL BASIC PROJECT EXPLORER WINDOW (Height: 40%) -->
-			<div class="h-[42%] flex flex-col rounded-lg border border-slate-800 bg-slate-900/80 shadow overflow-hidden">
+		{#if showProjectExplorer || showProperties}
+		<aside class="{rightPaneExpanded ? 'col-span-4' : 'col-span-3'} flex flex-col gap-1.5 overflow-hidden transition-all duration-150">
+			<!-- TOP: VISUAL BASIC PROJECT EXPLORER WINDOW -->
+			{#if showProjectExplorer}
+			<div class="{projectExplorerCollapsed ? 'shrink-0' : (propertiesCollapsed || !showProperties) ? 'flex-1 h-full' : 'h-[42%]'} flex flex-col rounded-lg border border-slate-800 bg-slate-900/80 shadow overflow-hidden transition-all duration-150">
 				<div class="flex items-center justify-between border-b border-slate-800 px-3 py-1.5 bg-slate-950/80 text-xs font-bold text-slate-200">
 					<div class="flex items-center gap-1.5">
-						<FolderTree class="h-3.5 w-3.5 text-emerald-400" />
+						<FolderTree class="h-3.5 w-3.5 text-amber-400" />
 						<span>Project Explorer</span>
+						<span class="font-mono text-[10px] text-slate-500 ml-1">
+							({runtimeApp?.pages?.length || 0})
+						</span>
 					</div>
 					<div class="flex items-center gap-1">
+						{#if !projectExplorerCollapsed}
 						<button
 							type="button"
 							onclick={() => openCodeBehind()}
@@ -1794,9 +1913,51 @@
 						>
 							+ Form
 						</button>
+						{/if}
+
+						<div class="h-3 w-px bg-slate-800 mx-0.5"></div>
+
+						<!-- Expand/Collapse Width (Perlebar/Persempit) -->
+						<button
+							type="button"
+							onclick={() => (rightPaneExpanded = !rightPaneExpanded)}
+							class="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+							title={rightPaneExpanded ? 'Persempit Panel Kanan (Collapse Width)' : 'Perlebar Panel Kanan (Expand Width)'}
+						>
+							{#if rightPaneExpanded}
+								<ChevronsRight class="h-3.5 w-3.5" />
+							{:else}
+								<ChevronsLeft class="h-3.5 w-3.5" />
+							{/if}
+						</button>
+
+						<!-- Collapse/Expand Height (Lipat / Buka) -->
+						<button
+							type="button"
+							onclick={() => (projectExplorerCollapsed = !projectExplorerCollapsed)}
+							class="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+							title={projectExplorerCollapsed ? 'Buka Project Explorer (Expand)' : 'Lipat Project Explorer (Collapse)'}
+						>
+							{#if projectExplorerCollapsed}
+								<ChevronDown class="h-3.5 w-3.5" />
+							{:else}
+								<ChevronUp class="h-3.5 w-3.5" />
+							{/if}
+						</button>
+
+						<!-- Hide/Close Window -->
+						<button
+							type="button"
+							onclick={() => (showProjectExplorer = false)}
+							class="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer"
+							title="Sembunyikan Project Explorer (Hide)"
+						>
+							<X class="h-3.5 w-3.5" />
+						</button>
 					</div>
 				</div>
 
+				{#if !projectExplorerCollapsed}
 				<!-- Project Tree Hierarchy -->
 				<div class="flex-1 overflow-y-auto p-2 text-xs font-mono">
 					<!-- Root Project -->
@@ -1891,18 +2052,61 @@
 						</div>
 					</div>
 				</div>
+				{/if}
 			</div>
+			{/if}
 
-			<!-- BOTTOM: VISUAL BASIC PROPERTIES WINDOW (Height: 58%) -->
-			<div class="h-[58%] flex flex-col rounded-lg border border-slate-800 bg-slate-900/80 shadow overflow-hidden">
+			<!-- BOTTOM: VISUAL BASIC PROPERTIES WINDOW -->
+			{#if showProperties}
+			<div class="{propertiesCollapsed ? 'shrink-0' : (projectExplorerCollapsed || !showProjectExplorer) ? 'flex-1 h-full' : 'h-[58%]'} flex flex-col rounded-lg border border-slate-800 bg-slate-900/80 shadow overflow-hidden transition-all duration-150">
 				<!-- Window Title Bar -->
-				<div class="flex items-center justify-between border-b border-slate-800 px-3 py-1 bg-slate-950/80 text-xs font-bold text-slate-200">
-					<div class="flex items-center gap-1.5">
-						<Sliders class="h-3.5 w-3.5 text-emerald-400" />
-						<span>Properties - {selectedComponent ? selectedComponent.name : activePage?.title || 'Form'}</span>
+				<div class="flex items-center justify-between border-b border-slate-800 px-3 py-1.5 bg-slate-950/80 text-xs font-bold text-slate-200">
+					<div class="flex items-center gap-1.5 truncate">
+						<Sliders class="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+						<span class="truncate">Properties - {selectedComponent ? selectedComponent.name : activePage?.title || 'Form'}</span>
+					</div>
+					<div class="flex items-center gap-1 shrink-0">
+						<!-- Expand/Collapse Width (Perlebar/Persempit) -->
+						<button
+							type="button"
+							onclick={() => (rightPaneExpanded = !rightPaneExpanded)}
+							class="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+							title={rightPaneExpanded ? 'Persempit Panel Kanan (Collapse Width)' : 'Perlebar Panel Kanan (Expand Width)'}
+						>
+							{#if rightPaneExpanded}
+								<ChevronsRight class="h-3.5 w-3.5" />
+							{:else}
+								<ChevronsLeft class="h-3.5 w-3.5" />
+							{/if}
+						</button>
+
+						<!-- Collapse/Expand Height (Lipat / Buka) -->
+						<button
+							type="button"
+							onclick={() => (propertiesCollapsed = !propertiesCollapsed)}
+							class="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+							title={propertiesCollapsed ? 'Buka Properties (Expand)' : 'Lipat Properties (Collapse)'}
+						>
+							{#if propertiesCollapsed}
+								<ChevronDown class="h-3.5 w-3.5" />
+							{:else}
+								<ChevronUp class="h-3.5 w-3.5" />
+							{/if}
+						</button>
+
+						<!-- Hide/Close Window -->
+						<button
+							type="button"
+							onclick={() => (showProperties = false)}
+							class="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer"
+							title="Sembunyikan Properties (Hide)"
+						>
+							<X class="h-3.5 w-3.5" />
+						</button>
 					</div>
 				</div>
 
+				{#if !propertiesCollapsed}
 				<!-- Object Selector Combo -->
 				<div class="border-b border-slate-800 p-1.5 bg-slate-950/60">
 					<select
@@ -2748,8 +2952,11 @@
 					<strong class="text-slate-200 block">{activePropertyHelp.title}</strong>
 					<p class="text-slate-400 leading-tight mt-0.5">{activePropertyHelp.desc}</p>
 				</div>
+				{/if}
 			</div>
+			{/if}
 		</aside>
+		{/if}
 	</div>
 
 	<!-- 3. VISUAL BASIC STATUS BAR (Bottom) -->
@@ -2760,6 +2967,25 @@
 			<span>Selected: {selectedComponent ? `${selectedComponent.name} [${selectedComponent.type}]` : 'Form Canvas'}</span>
 		</div>
 		<div class="flex items-center gap-4">
+			{#if !showToolbox || !showProjectExplorer || !showProperties || toolboxExpanded || rightPaneExpanded || projectExplorerCollapsed || propertiesCollapsed}
+				<button
+					type="button"
+					onclick={() => {
+						showToolbox = true;
+						toolboxExpanded = false;
+						showProjectExplorer = true;
+						projectExplorerCollapsed = false;
+						showProperties = true;
+						propertiesCollapsed = false;
+						rightPaneExpanded = false;
+					}}
+					class="text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer flex items-center gap-1 font-bold"
+					title="Kembalikan semua jendela ke posisi default"
+				>
+					<RefreshCw class="h-2.5 w-2.5" />
+					<span>Reset Layout</span>
+				</button>
+			{/if}
 			<span>Controls: {activePage?.components?.length || 0}</span>
 			<span>Snap: {snapToGrid ? '16x16 px' : 'Off'}</span>
 			<span class="text-slate-300">PostgreSQL 17.11 (Pool: 30)</span>
