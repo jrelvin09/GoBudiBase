@@ -254,6 +254,10 @@ func HandleBuildApp(pool *pgxpool.Pool, mainHandler http.Handler) http.HandlerFu
 			// Static files handler with fallback to index.html for SPA
 			fileServer := http.FileServer(http.Dir(absOutputDir))
 			runnerRouter.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				w.Header().Set("Pragma", "no-cache")
+				w.Header().Set("Expires", "0")
+
 				reqPath := filepath.Clean(r.URL.Path)
 				targetPath := filepath.Join(absOutputDir, reqPath)
 				info, err := os.Stat(targetPath)

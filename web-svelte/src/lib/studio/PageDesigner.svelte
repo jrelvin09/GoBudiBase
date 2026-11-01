@@ -42,6 +42,7 @@
 		RefreshCw,
 		Play,
 		Square,
+		Hammer,
 		Layout,
 		Box,
 		ArrowLeftRight,
@@ -166,6 +167,7 @@
 	let isBuilding = $state(false);
 	let buildResult = $state<BuildAppResult | null>(null);
 	let buildError = $state<string | null>(null);
+	let buildSuccessToast = $state<string | null>(null);
 	let activeRunnerUrl = $state<string | null>(null);
 
 	async function checkRunnerStatus() {
@@ -193,12 +195,19 @@
 			buildResult = res;
 			if (res.status?.is_active) {
 				activeRunnerUrl = res.url;
+				buildSuccessToast = `Build Berhasil (F9)! ${res.pages_built} halaman aktif di port ${buildPort}`;
+				setTimeout(() => {
+					buildSuccessToast = null;
+				}, 4500);
 				if (launchTab) {
 					window.open(res.url, '_blank');
 				}
 			}
 		} catch (err: any) {
 			buildError = err.message || 'Proses build gagal';
+			setTimeout(() => {
+				buildError = null;
+			}, 6000);
 		} finally {
 			isBuilding = false;
 		}
@@ -286,6 +295,9 @@
 			} else if (e.key === 'F5' && !e.ctrlKey) {
 				e.preventDefault();
 				handleRunApp();
+			} else if (e.key === 'F9') {
+				e.preventDefault();
+				handleBuildProject(false);
 			} else if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
 				e.preventDefault();
 				showBuildModal = true;
@@ -829,6 +841,9 @@
 		if (e.key === 'F5') {
 			e.preventDefault();
 			handleRunApp();
+		} else if (e.key === 'F9') {
+			e.preventDefault();
+			handleBuildProject(false);
 		} else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
 			e.preventDefault();
 			handleSaveAll();
@@ -862,6 +877,7 @@
 					<button type="button" class="hover:text-slate-200">Format</button>
 					<button type="button" class="hover:text-slate-200">Debug</button>
 					<button type="button" onclick={handleRunApp} class="hover:text-emerald-400 font-semibold">Run (F5)</button>
+					<button type="button" onclick={() => handleBuildProject(false)} class="hover:text-amber-400 font-semibold text-amber-300">Build (F9)</button>
 					<button type="button" onclick={() => (showBuildModal = true)} class="hover:text-sky-300 font-semibold text-sky-400">Make Project... (Ctrl+B)</button>
 					<button type="button" class="hover:text-slate-200">Tools</button>
 					<button type="button" class="hover:text-slate-200">Window</button>
@@ -937,16 +953,28 @@
 					<Square class="h-3.5 w-3.5" />
 				</button>
 
-				<!-- Make / Build Application Button -->
+				<!-- Dedicated Build (F9) Button -->
+				<button
+					type="button"
+					onclick={() => handleBuildProject(false)}
+					disabled={isBuilding}
+					class="flex items-center gap-1.5 rounded bg-amber-600 hover:bg-amber-500 px-3 py-1 font-bold text-xs text-white shadow transition cursor-pointer border border-amber-400/40 disabled:opacity-50"
+					title="Compile & Build Project ke Port Dedicated (F9)"
+				>
+					<Hammer class="h-3.5 w-3.5 fill-current" />
+					<span>{isBuilding ? 'Building...' : 'Build (F9)'}</span>
+					<span class="text-[9px] px-1 py-0.2 rounded font-mono bg-amber-800 text-amber-100">:{buildPort}</span>
+				</button>
+
+				<!-- Config Output Dir & Port Modal Button -->
 				<button
 					type="button"
 					onclick={() => (showBuildModal = true)}
-					class="flex items-center gap-1.5 rounded border border-sky-600/50 bg-sky-950/40 px-2.5 py-1 font-bold text-xs text-sky-300 shadow hover:bg-sky-900/60 transition cursor-pointer"
-					title="Build ke Output Dir & Host di Port Dedicated (Ctrl+B)"
+					class="flex items-center gap-1 rounded bg-slate-800 hover:bg-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-300 border border-slate-700 transition cursor-pointer"
+					title="Pengaturan Output Dir & Port Build (Ctrl+B)"
 				>
-					<Package class="h-3.5 w-3.5 text-sky-400" />
-					<span>Build</span>
-					<span class="text-[9px] px-1 py-0.2 rounded font-mono bg-sky-500/20 text-sky-300">:{buildPort}</span>
+					<Settings class="h-3 w-3 text-slate-400" />
+					<span>Config</span>
 				</button>
 
 				<div class="h-4 w-px bg-slate-800 mx-0.5"></div>
@@ -1287,8 +1315,11 @@
 				<CodeBehindEditor
 					{activePage}
 					{appSlug}
+					{buildPort}
+					{isBuilding}
 					onViewDesigner={() => (activeViewMode = 'designer')}
 					onRunApp={handleRunApp}
+					onBuildApp={() => handleBuildProject(false)}
 				/>
 			{:else}
 				<!-- Canvas Header Status -->
@@ -3345,6 +3376,18 @@
 						<span>{isBuilding ? 'Memproses Build...' : `Build & Buka Port ${buildPort}`}</span>
 					</button>
 				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+{#if buildSuccessToast}
+	<div class="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-xl border border-emerald-500/40 bg-slate-900/95 px-4 py-3 text-sm text-emerald-300 shadow-2xl backdrop-blur-md">
+		<CheckCircle2 class="h-5 w-5 text-emerald-400 shrink-0 animate-pulse" />
+		<div>
+			<div class="font-bold text-white text-xs">{buildSuccessToast}</div>
+			<div class="text-[11px] text-slate-400 font-mono mt-0.5">
+				Buka / refresh <a href={activeRunnerUrl || `http://${typeof window !== 'undefined' ? window.location.hostname : '10.10.1.106'}:8086`} target="_blank" class="underline text-emerald-400 font-bold hover:text-emerald-300">port 8086</a> untuk melihat perubahan
 			</div>
 		</div>
 	</div>

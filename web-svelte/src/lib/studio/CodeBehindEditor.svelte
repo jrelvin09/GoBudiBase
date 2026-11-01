@@ -23,19 +23,27 @@
 		FileText,
 		Palette,
 		Eye,
-		EyeOff
+		EyeOff,
+		Hammer,
+		Package
 	} from 'lucide-svelte';
 
 	let {
 		activePage,
 		appSlug = 'gopimsbase',
+		buildPort = 8086,
+		isBuilding = false,
 		onViewDesigner,
-		onRunApp
+		onRunApp,
+		onBuildApp
 	}: {
 		activePage: RuntimePage;
 		appSlug?: string;
+		buildPort?: number;
+		isBuilding?: boolean;
 		onViewDesigner: () => void;
 		onRunApp?: () => void;
+		onBuildApp?: () => Promise<void> | void;
 	} = $props();
 
 	// 4 Pillars of Code Behind: 'frontend' | 'backend' | 'html' | 'css'
@@ -43,6 +51,8 @@
 	let isFullscreen = $state<boolean>(false);
 	let isSaving = $state<boolean>(false);
 	let saveSuccess = $state<boolean>(false);
+	let buildSuccessToast = $state<boolean>(false);
+	let buildErrorToast = $state<string | null>(null);
 	let copied = $state<boolean>(false);
 	let showPreviewPane = $state<boolean>(false);
 
@@ -778,6 +788,29 @@ table tr:hover td {
 		onRunApp?.();
 	}
 
+	async function handleBuild() {
+		if (autoSaveTimer) clearTimeout(autoSaveTimer);
+		isSaving = true;
+		buildErrorToast = null;
+		try {
+			await handleSave();
+			if (onBuildApp) {
+				await onBuildApp();
+			}
+			buildSuccessToast = true;
+			setTimeout(() => {
+				buildSuccessToast = false;
+			}, 4000);
+		} catch (err: any) {
+			buildErrorToast = err.message || 'Build gagal';
+			setTimeout(() => {
+				buildErrorToast = null;
+			}, 5000);
+		} finally {
+			isSaving = false;
+		}
+	}
+
 	function handleCopy() {
 		navigator.clipboard.writeText(currentCode);
 		copied = true;
@@ -838,6 +871,9 @@ table tr:hover td {
 		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
 			e.preventDefault();
 			await handleSave();
+		} else if (e.key === 'F9') {
+			e.preventDefault();
+			await handleBuild();
 		} else if (e.key === 'F5') {
 			e.preventDefault();
 			await handleLaunchApp();
@@ -881,6 +917,19 @@ table tr:hover td {
 					<span>{isSaving ? 'Menyimpan...' : 'Simpan Code'}</span>
 				</button>
 
+				<!-- Dedicated Build (F9) Button -->
+				<button
+					type="button"
+					onclick={handleBuild}
+					disabled={isSaving || isBuilding}
+					class="flex items-center gap-1.5 rounded bg-amber-600 hover:bg-amber-500 px-3 py-1 text-white font-bold transition cursor-pointer shadow disabled:opacity-50 border border-amber-400/40"
+					title="Compile & Build Project ke Port Dedicated (F9)"
+				>
+					<Hammer class="h-3.5 w-3.5 fill-current" />
+					<span>{isBuilding ? 'Building...' : 'Build (F9)'}</span>
+					<span class="text-[9px] px-1 py-0.2 rounded font-mono bg-amber-800 text-amber-100">:{buildPort}</span>
+				</button>
+
 				<!-- Toggle Live Preview -->
 				<button
 					type="button"
@@ -910,9 +959,19 @@ table tr:hover td {
 				{/if}
 			</div>
 
-			<!-- Right: Copy & Fullscreen -->
+			<!-- Right: Status notifications, Copy & Fullscreen -->
 			<div class="flex items-center gap-2">
-				{#if saveSuccess}
+				{#if buildSuccessToast}
+					<span class="flex items-center gap-1 text-emerald-400 font-semibold text-[11px] animate-pulse">
+						<CheckCircle2 class="h-3.5 w-3.5 text-emerald-400" />
+						<span>Build Berhasil (F9)! Port {buildPort} terupdate</span>
+					</span>
+				{:else if buildErrorToast}
+					<span class="flex items-center gap-1 text-rose-400 font-semibold text-[11px]">
+						<AlertCircle class="h-3.5 w-3.5" />
+						<span>{buildErrorToast}</span>
+					</span>
+				{:else if saveSuccess}
 					<span class="flex items-center gap-1 text-emerald-400 font-semibold text-[11px] animate-pulse">
 						<CheckCircle2 class="h-3.5 w-3.5" />
 						<span>Tersimpan di Database!</span>
