@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { RuntimePage, RuntimeComponent } from '$lib/api/builderClient';
-	import { savePageCode, executeSqlStudio } from '$lib/api/builderClient';
+	import { savePageCode } from '$lib/api/builderClient';
 	import {
 		Code2,
 		Server,
 		Globe,
-		Play,
 		Save,
 		Copy,
 		Check,
 		Sparkles,
-		Terminal,
 		CheckCircle2,
 		Layers,
 		Zap,
@@ -21,9 +19,6 @@
 		Minimize2,
 		AlertCircle,
 		Layout,
-		RefreshCw,
-		Trash2,
-		Send,
 		FileCode,
 		FileText,
 		Palette,
@@ -49,7 +44,6 @@
 	let isSaving = $state<boolean>(false);
 	let saveSuccess = $state<boolean>(false);
 	let copied = $state<boolean>(false);
-	let isExecuting = $state<boolean>(false);
 	let showPreviewPane = $state<boolean>(false);
 
 	// Code strings for the 4 pillars
@@ -57,16 +51,6 @@
 	let scriptBack = $state<string>('');
 	let customHtml = $state<string>('');
 	let customCss = $state<string>('');
-
-	// Interactive Test Console
-	let showConsole = $state<boolean>(true);
-	let consoleLogs = $state<Array<{ type: 'log' | 'error' | 'success' | 'sql' | 'dom'; text: string; time: string }>>([
-		{
-			type: 'log',
-			text: '[Ready] 4-Pillar Code Behind initialized (FrontEnd, BackEnd, HTML, CSS ready).',
-			time: new Date().toLocaleTimeString()
-		}
-	]);
 
 	// =========================================================================
 	// 1. DEFAULT CODE GENERATORS
@@ -744,12 +728,11 @@ table tr:hover td {
 			activePage.custom_css = customCss;
 
 			saveSuccess = true;
-			addLog('success', `Berhasil menyimpan 4-Pillar Code Behind (FrontEnd, BackEnd, HTML, CSS) untuk Form [${activePage.title}]`);
 			setTimeout(() => {
 				saveSuccess = false;
 			}, 3000);
 		} catch (e: any) {
-			addLog('error', `Gagal menyimpan Code Behind: ${e.message || e}`);
+			alert(`Gagal menyimpan Code Behind: ${e.message || e}`);
 		} finally {
 			isSaving = false;
 		}
@@ -761,17 +744,6 @@ table tr:hover td {
 		setTimeout(() => {
 			copied = false;
 		}, 2000);
-	}
-
-	function addLog(type: 'log' | 'error' | 'success' | 'sql' | 'dom', text: string) {
-		consoleLogs = [
-			...consoleLogs,
-			{
-				type,
-				text,
-				time: new Date().toLocaleTimeString()
-			}
-		];
 	}
 
 	// Insert snippet helpers
@@ -786,7 +758,6 @@ table tr:hover td {
 				snippet = `\n  // [Preset] Custom NIK Regex Validator\n  validateNik(nik: string) {\n    const regex = /^[0-9]{4,16}$/;\n    return regex.test(nik) ? null : "Format NIK tidak valid (harus angka 4-16 digit)";\n  }\n`;
 			}
 			scriptFront += snippet;
-			addLog('log', `Preset FrontEnd [${type}] disisipkan ke kode.`);
 		} else if (activeLayer === 'backend') {
 			let snippet = '';
 			if (type === 'autonumber') {
@@ -797,7 +768,6 @@ table tr:hover td {
 				snippet = `\n-- [Preset] Multi-Table Atomic Transaction (BEGIN ... COMMIT)\nDO $$\nBEGIN\n    -- Langkah 1: Update status induk\n    UPDATE pims.users SET updated_at = NOW() WHERE id = 1;\n    -- Langkah 2: Catat log\n    INSERT INTO pims.activity_log(operation) VALUES ('BATCH_UPDATE');\n    -- Otomatis commit jika sukses, rollback jika gagal\nEND;\n$$;\n`;
 			}
 			scriptBack += snippet;
-			addLog('sql', `Preset BackEnd [${type}] disisipkan ke kode.`);
 		} else if (activeLayer === 'html') {
 			let snippet = '';
 			if (type === 'banner') {
@@ -808,7 +778,6 @@ table tr:hover td {
 				snippet = `\n<!-- [Preset] Custom Action Modal Container -->\n<div id="custom-action-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">\n  <div class="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl">\n    <h3 class="text-sm font-bold text-white mb-2">Konfirmasi Aksi</h3>\n    <p class="text-xs text-slate-400 mb-4">Apakah Anda yakin ingin memproses transaksi ini?</p>\n    <div class="flex justify-end gap-2">\n      <button class="px-3 py-1.5 rounded-lg bg-slate-800 text-xs text-slate-300">Batal</button>\n      <button class="px-3 py-1.5 rounded-lg bg-emerald-600 text-xs text-white font-bold">Lanjutkan</button>\n    </div>\n  </div>\n</div>\n`;
 			}
 			customHtml += snippet;
-			addLog('dom', `Preset HTML [${type}] disisipkan ke kode.`);
 		} else if (activeLayer === 'css') {
 			let snippet = '';
 			if (type === 'glass') {
@@ -819,78 +788,6 @@ table tr:hover td {
 				snippet = `\n/* [Preset] Clean Print Mode */\n@media print {\n  .no-print, header, nav, aside, .btn-action {\n    display: none !important;\n  }\n  body { background: #fff !important; color: #000 !important; }\n}\n`;
 			}
 			customCss += snippet;
-			addLog('dom', `Preset CSS [${type}] disisipkan ke stylesheet.`);
-		}
-	}
-
-	// Test / Run Script Execution
-	async function handleTestExecute() {
-		isExecuting = true;
-		addLog('log', `Menjalankan uji coba eksekusi layer [${activeLayer.toUpperCase()}]...`);
-
-		if (activeLayer === 'frontend') {
-			try {
-				const mockCtx = {
-					form: { username: 'IT000002', password: 'Palembang@2026', qty: 10, harga: 25000, diskon_pct: 10 },
-					queryParams: new URLSearchParams('nik=IT000002'),
-					navigate: (url: string) => addLog('log', `[Test Navigate] => ${url}`),
-					notify: (msg: string, t: string) => addLog('success', `[Test Notification (${t})] => ${msg}`)
-				};
-				addLog('success', `[FrontEnd Test Sandbox]: Kode valid! Syntax TypeScript/JS lulus uji linting.`);
-				addLog('log', `[Test Context Data]: ${JSON.stringify(mockCtx.form)}`);
-			} catch (e: any) {
-				addLog('error', `[FrontEnd Syntax Error]: ${e.message}`);
-			} finally {
-				isExecuting = false;
-			}
-		} else if (activeLayer === 'backend') {
-			try {
-				const queryToTest = scriptBack.includes('SELECT')
-					? scriptBack.split(';').find((q) => q.toUpperCase().includes('SELECT'))?.trim() || 'SELECT version();'
-					: 'SELECT current_database(), current_user, version();';
-
-				addLog('sql', `[Executing SQL against PostgreSQL]: ${queryToTest}`);
-				const res = await executeSqlStudio(queryToTest, 5);
-				addLog('success', `[PostgreSQL Query Succeeded]: ${res.total_rows || res.rows.length} records dikembalikan`);
-				if (res.rows && res.rows.length > 0) {
-					addLog('log', `[Sample Output]: ${JSON.stringify(res.rows[0])}`);
-				}
-			} catch (e: any) {
-				addLog('error', `[BackEnd Execution Error]: ${e.message}`);
-			} finally {
-				isExecuting = false;
-			}
-		} else if (activeLayer === 'html') {
-			try {
-				const parser = new DOMParser();
-				const doc = parser.parseFromString(customHtml, 'text/html');
-				const parserErrors = doc.querySelectorAll('parsererror');
-				if (parserErrors.length > 0) {
-					addLog('error', `[HTML Parser Warning]: Terdapat syntax tag yang tidak valid.`);
-				} else {
-					const nodeCount = doc.body.querySelectorAll('*').length;
-					addLog('success', `[HTML DOM Validasi]: Markup HTML valid! Terdeteksi ${nodeCount} node DOM kustom.`);
-					addLog('dom', `[Struktur Elemen]: ${Array.from(doc.body.children).map(c => `<${c.tagName.toLowerCase()}>`).join(', ')}`);
-				}
-			} catch (e: any) {
-				addLog('error', `[HTML Error]: ${e.message}`);
-			} finally {
-				isExecuting = false;
-			}
-		} else if (activeLayer === 'css') {
-			try {
-				const styleEl = document.createElement('style');
-				styleEl.textContent = customCss;
-				document.head.appendChild(styleEl);
-				const sheet = styleEl.sheet as CSSStyleSheet;
-				const rulesCount = sheet?.cssRules?.length || 0;
-				document.head.removeChild(styleEl);
-				addLog('success', `[CSS Stylesheet Validasi]: Stylesheet valid! ${rulesCount} CSS rules berhasil diuraikan.`);
-			} catch (e: any) {
-				addLog('error', `[CSS Parser Error]: ${e.message}`);
-			} finally {
-				isExecuting = false;
-			}
 		}
 	}
 </script>
@@ -903,7 +800,7 @@ table tr:hover td {
 	<header class="flex flex-col border-b border-slate-800 bg-slate-900/90 text-xs text-slate-300">
 		<!-- Top Row: Mode Switches & Save -->
 		<div class="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 border-b border-slate-800/80 bg-slate-950/70">
-			<!-- Left: Return to Designer, Save, Test, Launch -->
+			<!-- Left: Return to Designer, Save, Launch -->
 			<div class="flex items-center gap-1.5">
 				<!-- Return to Form Designer -->
 				<button
@@ -931,18 +828,6 @@ table tr:hover td {
 					<span>{isSaving ? 'Menyimpan...' : 'Simpan Code'}</span>
 				</button>
 
-				<!-- Run / Test Code -->
-				<button
-					type="button"
-					onclick={handleTestExecute}
-					disabled={isExecuting}
-					class="flex items-center gap-1.5 rounded bg-blue-600 px-2.5 py-1 text-white font-bold hover:bg-blue-500 transition cursor-pointer shadow"
-					title="Uji Coba Validasi & Eksekusi Layer Aktif Ini"
-				>
-					<Play class="h-3 w-3 fill-current" />
-					<span>Uji {activeLayer.toUpperCase()}</span>
-				</button>
-
 				<!-- Toggle Live Preview -->
 				<button
 					type="button"
@@ -963,10 +848,10 @@ table tr:hover td {
 					<button
 						type="button"
 						onclick={onRunApp}
-						class="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-slate-300 hover:bg-slate-700 hover:text-emerald-400 transition cursor-pointer"
+						class="flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1 text-white font-bold hover:bg-blue-500 transition cursor-pointer shadow"
 						title="Buka Runtime Aplikasi (F5)"
 					>
-						<Zap class="h-3.5 w-3.5 text-emerald-400" />
+						<Zap class="h-3.5 w-3.5 fill-current" />
 						<span class="hidden sm:inline">Launch App (F5)</span>
 					</button>
 				{/if}
@@ -985,7 +870,7 @@ table tr:hover td {
 				<button
 					type="button"
 					onclick={handleCopy}
-					class="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition"
+					class="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition cursor-pointer"
 					title="Salin Kode Aktif"
 				>
 					{#if copied}
@@ -1001,7 +886,7 @@ table tr:hover td {
 				<button
 					type="button"
 					onclick={() => (isFullscreen = !isFullscreen)}
-					class="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
+					class="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
 					title={isFullscreen ? 'Keluar Fullscreen' : 'Fullscreen Code Editor'}
 				>
 					{#if isFullscreen}
@@ -1234,67 +1119,15 @@ table tr:hover td {
 		{/if}
 	</div>
 
-	<!-- 3. INTERACTIVE REPL CONSOLE (OUTPUT & TEST LOGS) -->
-	{#if showConsole}
-		<div class="h-44 border-t border-slate-800 bg-[#05080e] flex flex-col shrink-0">
-			<!-- Console Bar -->
-			<div class="flex items-center justify-between border-b border-slate-800 px-3 py-1 bg-slate-900/90 text-[11px] font-bold text-slate-300">
-				<div class="flex items-center gap-1.5">
-					<Terminal class="h-3 w-3 text-emerald-400" />
-					<span class="text-emerald-400">Code Behind Output & Execution Console</span>
-					<span class="text-slate-500 font-normal font-mono text-[10px]">(Hasil uji coba logika FrontEnd / BackEnd / HTML / CSS)</span>
-				</div>
-				<div class="flex items-center gap-2">
-					<button
-						type="button"
-						onclick={() => (consoleLogs = [])}
-						class="text-slate-500 hover:text-slate-300 transition"
-						title="Bersihkan Log"
-					>
-						<Trash2 class="h-3 w-3" />
-					</button>
-					<button
-						type="button"
-						onclick={() => (showConsole = false)}
-						class="text-slate-500 hover:text-slate-300 transition"
-						title="Tutup Console"
-					>
-						✕
-					</button>
-				</div>
-			</div>
-
-			<!-- Console Output List -->
-			<div class="flex-1 overflow-auto p-2 font-mono text-[11px] space-y-1">
-				{#each consoleLogs as log}
-					<div class="flex items-start gap-2">
-						<span class="text-slate-600 text-[10px] shrink-0">{log.time}</span>
-						<span class="font-bold shrink-0 {log.type === 'error' ? 'text-rose-400' : log.type === 'success' ? 'text-emerald-400' : log.type === 'sql' ? 'text-amber-400' : log.type === 'dom' ? 'text-cyan-400' : 'text-blue-400'}">
-							[{log.type.toUpperCase()}]
-						</span>
-						<span class="text-slate-300 whitespace-pre-wrap">{log.text}</span>
-					</div>
-				{/each}
-			</div>
-		</div>
-	{/if}
-
-	<!-- 4. STATUS FOOTER BAR -->
-	<footer class="flex items-center justify-between border-t border-slate-800 bg-slate-900/90 px-3 py-1 text-[10px] font-mono text-slate-400 select-none">
+	<!-- 3. STATUS FOOTER BAR -->
+	<footer class="flex items-center justify-between border-t border-slate-800 bg-slate-900/90 px-3 py-1 text-[10px] font-mono text-slate-400 select-none shrink-0">
 		<div class="flex items-center gap-3">
 			<span class="text-emerald-400 font-semibold">● Active Form: {activePage.title}</span>
 			<span>Layer: <strong class="{activeLayer === 'frontend' ? 'text-indigo-400' : activeLayer === 'backend' ? 'text-amber-400' : activeLayer === 'html' ? 'text-cyan-400' : 'text-pink-400'} uppercase">{activeLayer}</strong></span>
 			<span>Lines: <strong class="text-slate-200">{codeLines.length}</strong></span>
 		</div>
 		<div class="flex items-center gap-3">
-			<button
-				type="button"
-				onclick={() => (showConsole = !showConsole)}
-				class="text-slate-400 hover:text-emerald-400 transition cursor-pointer font-bold"
-			>
-				{showConsole ? '▼ Sembunyikan Console' : '▲ Buka Console'}
-			</button>
-			<span class="text-slate-500">Ctrl+S: Simpan | F5: Run</span>
+			<span class="text-slate-500">Ctrl+S: Simpan | F5: Launch App | Shift+F7: Visual Designer</span>
 		</div>
 	</footer>
 </div>

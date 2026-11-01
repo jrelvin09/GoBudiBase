@@ -59,6 +59,8 @@
 		Minus,
 		Maximize2,
 		X,
+		ChevronsLeft,
+		ChevronsRight,
 		MousePointerClick,
 		Type,
 		CheckSquare,
@@ -96,6 +98,12 @@
 	// Visual Basic Toolbox State
 	let toolboxTab = $state<'standard' | 'uikit' | 'tables' | 'budibase'>('standard');
 	let toolboxSearch = $state('');
+	let showToolbox = $state<boolean>(true);
+	let toolboxExpanded = $state<boolean>(false);
+	const centerColSpan = $derived.by(() => {
+		if (!showToolbox) return 'col-span-9';
+		return toolboxExpanded ? 'col-span-5' : 'col-span-6';
+	});
 
 	// Visual Basic Property Grid State
 	let propertyTab = $state<'categorized' | 'alphabetic'>('categorized');
@@ -840,6 +848,22 @@
 
 				<div class="h-4 w-px bg-slate-800 mx-0.5"></div>
 
+				<!-- Visual Basic Toolbox Toggle Button -->
+				<button
+					type="button"
+					onclick={() => (showToolbox = !showToolbox)}
+					class="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold transition border cursor-pointer {showToolbox ? 'border-emerald-600/40 bg-emerald-950/40 text-emerald-300' : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'}"
+					title={showToolbox ? 'Sembunyikan Toolbox' : 'Tampilkan Toolbox'}
+				>
+					<Sliders class="h-3.5 w-3.5 text-emerald-400" />
+					<span>Toolbox</span>
+					<span class="text-[9px] px-1 py-0.2 rounded font-mono {showToolbox ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-400'}">
+						{showToolbox ? (toolboxExpanded ? 'EXPAND' : 'ON') : 'OFF'}
+					</span>
+				</button>
+
+				<div class="h-4 w-px bg-slate-800 mx-0.5"></div>
+
 				<!-- Active Form Dropdown -->
 				<div class="flex items-center gap-1.5 rounded bg-slate-950 px-2 py-0.5 border border-slate-800 text-xs">
 					<span class="text-slate-500 font-mono text-[10px]">Form:</span>
@@ -893,19 +917,44 @@
 	<!-- 2. MAIN VISUAL BASIC 3-COLUMN WORKSPACE -->
 	<div class="flex-1 grid grid-cols-12 gap-1.5 p-1.5 overflow-hidden bg-slate-950">
 		<!-- ========================================== -->
-		<!-- LEFT: VISUAL BASIC TOOLBOX (Col: 3)       -->
+		<!-- LEFT: VISUAL BASIC TOOLBOX                 -->
 		<!-- ========================================== -->
-		<aside class="col-span-3 flex flex-col rounded-lg border border-slate-800 bg-slate-900/80 shadow overflow-hidden">
-			<!-- Toolbox Title Bar -->
-			<div class="flex items-center justify-between border-b border-slate-800 px-3 py-1.5 bg-slate-950/80 text-xs font-bold text-slate-200">
-				<div class="flex items-center gap-1.5">
-					<Sliders class="h-3.5 w-3.5 text-emerald-400" />
-					<span>Toolbox</span>
+		{#if showToolbox}
+			<aside class="{toolboxExpanded ? 'col-span-4' : 'col-span-3'} flex flex-col rounded-lg border border-slate-800 bg-slate-900/80 shadow overflow-hidden transition-all duration-150">
+				<!-- Toolbox Title Bar -->
+				<div class="flex items-center justify-between border-b border-slate-800 px-3 py-1.5 bg-slate-950/80 text-xs font-bold text-slate-200">
+					<div class="flex items-center gap-1.5">
+						<Sliders class="h-3.5 w-3.5 text-emerald-400" />
+						<span>Toolbox</span>
+						<span class="font-mono text-[10px] text-slate-500 ml-1">
+							{toolboxTab === 'standard' ? `${standardControls.length} APEX` : toolboxTab === 'uikit' ? `${catalog.length} UI Kit` : toolboxTab === 'tables' ? `${schemaTables.length} Tables` : `${budibaseBlocks.length} Blocks`}
+						</span>
+					</div>
+					<div class="flex items-center gap-1">
+						<!-- Expand / Collapse Button -->
+						<button
+							type="button"
+							onclick={() => (toolboxExpanded = !toolboxExpanded)}
+							class="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+							title={toolboxExpanded ? 'Persempit Toolbox (Collapse)' : 'Perlebar Toolbox (Expand)'}
+						>
+							{#if toolboxExpanded}
+								<ChevronsLeft class="h-3.5 w-3.5" />
+							{:else}
+								<ChevronsRight class="h-3.5 w-3.5" />
+							{/if}
+						</button>
+						<!-- Hide Button -->
+						<button
+							type="button"
+							onclick={() => (showToolbox = false)}
+							class="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer"
+							title="Sembunyikan Toolbox (Hide)"
+						>
+							<X class="h-3.5 w-3.5" />
+						</button>
+					</div>
 				</div>
-				<span class="font-mono text-[10px] text-slate-500">
-					{toolboxTab === 'standard' ? `${standardControls.length} APEX` : toolboxTab === 'uikit' ? `${catalog.length} UI Kit` : toolboxTab === 'tables' ? `${schemaTables.length} Tables` : `${budibaseBlocks.length} Blocks`}
-				</span>
-			</div>
 
 			<!-- Toolbox Tabs: APEX Standard | UI Kit (71) | DB Schema | Budibase Blocks -->
 			<div class="grid grid-cols-4 border-b border-slate-800 text-[10px] font-bold text-center">
@@ -962,7 +1011,7 @@
 			<div class="flex-1 overflow-y-auto p-2">
 				{#if toolboxTab === 'standard'}
 					<!-- 22 APEX Controls -->
-					<div class="grid grid-cols-2 gap-1.5">
+					<div class="grid {toolboxExpanded ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5">
 						{#each filteredStandard as item}
 							{@const Icon = item.icon}
 							<button
@@ -1031,7 +1080,7 @@
 					</div>
 				{:else if toolboxTab === 'budibase'}
 					<!-- Budibase Blocks - high-level composed blocks -->
-					<div class="grid grid-cols-2 gap-1.5">
+					<div class="grid {toolboxExpanded ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5">
 						{#each filteredBudibase as item}
 							{@const Icon = item.icon}
 							<button
@@ -1057,11 +1106,12 @@
 				{/if}
 			</div>
 		</aside>
+		{/if}
 
 		<!-- ======================================================= -->
 		<!-- CENTER: VISUAL BASIC FORM DESIGNER / CODE BEHIND CANVAS -->
 		<!-- ======================================================= -->
-		<main class="col-span-6 flex flex-col rounded-lg border border-slate-800 bg-slate-950 shadow overflow-hidden">
+		<main class="{centerColSpan} flex flex-col rounded-lg border border-slate-800 bg-slate-950 shadow overflow-hidden transition-all duration-150">
 			{#if activeViewMode === 'code' && activePage}
 				<CodeBehindEditor
 					{activePage}
@@ -1073,6 +1123,17 @@
 				<!-- Canvas Header Status -->
 			<div class="flex items-center justify-between border-b border-slate-800 px-3 py-1.5 bg-slate-900/90 text-xs">
 				<div class="flex items-center gap-2">
+					{#if !showToolbox}
+						<button
+							type="button"
+							onclick={() => (showToolbox = true)}
+							class="flex items-center gap-1 rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 hover:bg-slate-700 transition cursor-pointer shadow-sm"
+							title="Buka / Tampilkan kembali Toolbox"
+						>
+							<Sliders class="h-3 w-3" />
+							<span>+ Buka Toolbox</span>
+						</button>
+					{/if}
 					<Layout class="h-3.5 w-3.5 text-emerald-400" />
 					<span class="font-bold text-slate-200">Form Designer</span>
 					<!-- Canvas Layout Mode Switcher -->
