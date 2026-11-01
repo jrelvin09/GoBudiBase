@@ -190,7 +190,7 @@ export default {
 };
 $JS$
 
-WHERE id = 22;
+WHERE app_id = 2 AND slug = 'login';
 
 
 -- 2. SETUP INFORMASI USER (PAGE 12, slug: setup-user-informations)
@@ -328,6 +328,6 @@ table tr:hover td {
 }
 $CSS$
 
-WHERE id = 12;
+WHERE app_id = 2 AND slug = 'setup-user-informations';
 
 COMMIT;
