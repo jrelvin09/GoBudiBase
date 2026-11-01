@@ -156,7 +156,14 @@
 	<div class="w-full">
 		{#if currentMode === 'pims'}
 			{#if !currentUser}
-				<PimsLogin onLoginSuccess={(user) => (currentUser = user)} />
+				<DynamicAppRuntime
+					appSlug="gopimsbase"
+					initialPageSlug="login"
+					onOpenStudio={() => {
+						activeAppSlug = 'gopimsbase';
+						currentMode = 'studio_designer';
+					}}
+				/>
 			{:else}
 				<PimsPortal
 					{currentUser}

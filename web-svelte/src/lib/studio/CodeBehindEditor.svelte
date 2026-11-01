@@ -431,127 +431,276 @@ $$;
 
 	function generateDefaultHtml(page: RuntimePage): string {
 		const isLogin = page.slug === 'login' || page.id === 22 || page.title.toLowerCase().includes('login');
+		const isSetupUser = page.slug === 'setup-user-informations' || page.id === 12;
+
 		if (isLogin) {
 			return `<!-- 
   ============================================================================
-  Custom HTML Template: Login Harvest Cloud (Page 9999)
-  Kustomisasi DOM / Markup yang tidak ada di Form Designer standar
+  HTML Template: Login Harvest Cloud (Page 9999)
+  Kustomisasi tampilan Form Login Oracle APEX Harvest Cloud
   ============================================================================
 -->
-<div class="pims-custom-banner flex items-center justify-between p-3.5 mb-4 rounded-xl border border-emerald-500/30 bg-emerald-950/40 text-emerald-300 shadow-lg">
-  <div class="flex items-center gap-3">
-    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center font-bold text-emerald-400">
-      ⚡
+<div class="relative flex min-h-[85vh] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#f2f4f7] py-12 px-4 select-none">
+  <!-- APEX Redwood Ambient Fluid Background -->
+  <div class="pointer-events-none absolute inset-0 z-0 overflow-hidden opacity-40">
+    <div class="absolute -top-[20%] -left-[10%] h-[550px] w-[550px] rounded-full bg-gradient-to-br from-amber-200/40 via-orange-100/30 to-transparent blur-3xl"></div>
+    <div class="absolute -bottom-[20%] -right-[10%] h-[550px] w-[550px] rounded-full bg-gradient-to-tl from-sky-200/40 via-blue-100/30 to-transparent blur-3xl"></div>
+    <div class="absolute top-[35%] right-[20%] h-[300px] w-[300px] rounded-full bg-emerald-100/30 blur-2xl"></div>
+  </div>
+
+  <!-- APEX Login Container Card -->
+  <div class="pims-login-card relative z-10 w-full max-w-[420px] rounded-2xl border border-slate-200/80 bg-white/95 p-8 shadow-2xl backdrop-blur-md transition-all sm:p-10">
+    
+    <!-- Login Header & Brand Logo -->
+    <div class="mb-8 flex flex-col items-center text-center">
+      <div class="relative mb-3 flex h-20 w-20 items-center justify-center rounded-2xl bg-[#026cb6]/10 text-[#026cb6] shadow-sm transition-transform hover:scale-105">
+        <svg class="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 10v.2A3 3 0 0 1 8.9 16v0H5v0h0a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"/>
+          <path d="M7 16v6"/>
+          <path d="M13 19v3"/>
+          <path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7l-2.6-3.1a1 1 0 0 0-1.4 0L10.4 7.3"/>
+        </svg>
+      </div>
+      <h1 id="pims-title" class="text-xl font-bold tracking-tight text-slate-900">Harvest Cloud</h1>
+      <p id="pims-subtitle" class="mt-1 text-xs text-slate-500 font-medium">Plantation Information Management System (PIMS)</p>
+      <div class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[10px] font-mono font-medium text-slate-600 border border-slate-200">
+        <span>Oracle APEX 24.2 Parity</span>
+        <span>•</span>
+        <span>App 103</span>
+      </div>
     </div>
-    <div>
-      <h5 class="text-xs font-bold text-emerald-200">Harvest Cloud PIMS Production System</h5>
-      <p class="text-[11px] text-emerald-400/80">Single Sign-On aktif. Gunakan akun korporat IT000002 untuk modul HCM & Plantation.</p>
+
+    <!-- Login Form -->
+    <form id="pims-login-form" class="space-y-4">
+      <!-- Error Message Container (Hidden by default) -->
+      <div id="pims-login-error" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 shadow-sm">
+        <span id="pims-login-error-text">Invalid Login Credentials</span>
+      </div>
+
+      <!-- Username Input -->
+      <div>
+        <label for="pims-username" class="sr-only">Username</label>
+        <div class="relative">
+          <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <input
+            id="pims-username"
+            name="username"
+            type="text"
+            value="IT000002"
+            placeholder="Username"
+            required
+            autocomplete="username"
+            class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-800 placeholder-slate-400 shadow-sm outline-none transition focus:border-[#026cb6] focus:ring-2 focus:ring-[#026cb6]/20 font-medium"
+          />
+        </div>
+      </div>
+
+      <!-- Password Input -->
+      <div>
+        <label for="pims-password" class="sr-only">Password</label>
+        <div class="relative">
+          <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <input
+            id="pims-password"
+            name="password"
+            type="password"
+            value="Palembang@2026"
+            placeholder="Password"
+            required
+            autocomplete="current-password"
+            class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-11 text-sm text-slate-800 placeholder-slate-400 shadow-sm outline-none transition focus:border-[#026cb6] focus:ring-2 focus:ring-[#026cb6]/20 font-medium"
+          />
+          <button
+            type="button"
+            id="btn-toggle-password"
+            class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Remember Username Checkbox -->
+      <div class="flex items-center justify-between pt-1">
+        <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-600 hover:text-slate-900 transition">
+          <input
+            id="pims-remember"
+            name="remember"
+            type="checkbox"
+            checked
+            class="h-4 w-4 rounded border-slate-300 text-[#026cb6] focus:ring-[#026cb6]/30 cursor-pointer"
+          />
+          <span>Remember username</span>
+        </label>
+      </div>
+
+      <!-- APEX Hot Button: Sign In -->
+      <button
+        type="submit"
+        id="btn-signin"
+        class="btn-apex-primary w-full flex items-center justify-center gap-2 rounded-lg bg-[#026cb6] py-2.5 px-4 text-sm font-semibold text-white shadow-md shadow-[#026cb6]/25 transition hover:bg-[#025691] active:scale-[0.99] cursor-pointer"
+      >
+        <span>Sign In</span>
+      </button>
+    </form>
+
+    <!-- Demo Quick Fill Helper -->
+    <div class="mt-6 border-t border-slate-100 pt-5 text-center">
+      <button
+        type="button"
+        id="btn-prefill-demo"
+        class="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3.5 py-1.5 text-[11px] font-semibold text-sky-800 transition hover:bg-sky-100 hover:border-sky-300 cursor-pointer shadow-xs"
+      >
+        <span>Prefill Demo: <strong>IT000002</strong> / <strong>Palembang@2026</strong></span>
+      </button>
+    </div>
+
+    <!-- Footer Security Note -->
+    <div class="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+      <svg class="h-3.5 w-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+      <span id="pims-footer-note">Secured by GoBudiBase Engine & ORDS Bridge</span>
     </div>
   </div>
-  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-    v2.6.4-ONLINE
-  </span>
-</div>
+</div>`;
+		}
 
-<div class="pims-custom-footer text-center text-xs text-slate-500 mt-6 pt-4 border-t border-slate-800/80">
-  <p>© 2026 PT. Sahabat Agro Group • Plantation Information & Management System</p>
-  <p class="text-[10px] text-slate-600 mt-1">Sistem ini dilindungi hak cipta dan enkripsi end-to-end SSL.</p>
+		if (isSetupUser) {
+			return `<!-- 
+  ============================================================================
+  HTML Template: SETUP Informasi User (Page 160)
+  ============================================================================
+-->
+<div class="flex flex-col gap-5 p-2 font-sans select-none">
+  <!-- APEX Page Header & Breadcrumb -->
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+    <div>
+      <div class="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+        <span>Home</span>
+        <span>/</span>
+        <span>Konfigurasi Setup</span>
+        <span>/</span>
+        <span class="text-sky-400 font-bold">SETUP Informasi User</span>
+      </div>
+      <h2 id="page-title" class="text-xl font-bold text-white tracking-tight mt-1 flex items-center gap-2">
+        <span>SETUP Informasi User (P-160)</span>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Live APEX Parity</span>
+      </h2>
+      <p id="page-desc" class="text-xs text-slate-400 mt-0.5">Kelola data master pengguna korporat, subsidiary, penugasan role, dan status aktifasi akun.</p>
+    </div>
+
+    <!-- Action Toolbar -->
+    <div class="flex items-center gap-2">
+      <button id="btn-export-csv" type="button" class="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition cursor-pointer">
+        <span>Export CSV</span>
+      </button>
+      <button id="btn-add-user" type="button" class="flex items-center gap-1.5 rounded-lg bg-[#026cb6] px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-[#026cb6]/30 hover:bg-[#025691] transition cursor-pointer">
+        <span>+ Tambah User</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter & Search Bar -->
+  <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 shadow-sm backdrop-blur">
+    <div class="flex flex-wrap items-center gap-2.5 flex-1 max-w-xl">
+      <input
+        id="pims-search-input"
+        type="text"
+        placeholder="Cari NIK, Nama Karyawan, Role..."
+        class="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-sky-500"
+      />
+      <select id="pims-filter-subsidiary" class="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 outline-none focus:border-sky-500 cursor-pointer">
+        <option value="ALL">Semua Subsidiary (PT)</option>
+        <option value="KYA">PT Kirana Yudha Amandari</option>
+        <option value="SWA">PT Sumber Wangi Alam</option>
+        <option value="ASJ">PT Cahaya Putih Energi Alam</option>
+      </select>
+    </div>
+    <div class="text-xs text-slate-400 font-mono">
+      <span>Total: <strong class="text-white">1,420</strong> User</span>
+    </div>
+  </div>
+
+  <!-- Interactive Grid / Table Card -->
+  <div class="rounded-xl border border-slate-800 bg-slate-900/80 shadow-xl overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs text-slate-300">
+        <thead class="bg-slate-950/80 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+          <tr>
+            <th class="py-3 px-4 w-12 text-center">No</th>
+            <th class="py-3 px-4">NIK</th>
+            <th class="py-3 px-4">Nama Lengkap</th>
+            <th class="py-3 px-4">Subsidiary</th>
+            <th class="py-3 px-4">Role System</th>
+            <th class="py-3 px-4 text-center">Status</th>
+            <th class="py-3 px-4 text-right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/60 font-medium">
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="py-3 px-4 text-center text-slate-500 font-mono">1</td>
+            <td class="py-3 px-4 font-bold text-sky-400 font-mono">IT000002</td>
+            <td class="py-3 px-4 font-semibold text-white">Mukti Assary</td>
+            <td class="py-3 px-4 text-slate-300">PT Palembang Agro Mandiri</td>
+            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-950 text-sky-300 border border-sky-500/30">Administrator HCM</span></td>
+            <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-500/30">Aktif</span></td>
+            <td class="py-3 px-4 text-right">
+              <button class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 text-[11px] font-semibold cursor-pointer">Edit</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>`;
 		}
 
 		return `<!-- 
   ============================================================================
-  Custom HTML Template: ${page.title} (${page.slug})
-  Kustomisasi DOM / Markup yang tidak ada di Form Designer standar
+  HTML Template: ${page.title} (${page.slug})
   ============================================================================
 -->
-<div class="pims-header-widget grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-  <div class="p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur flex items-center justify-between shadow-sm">
-    <div>
-      <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Status Modul</span>
-      <h4 class="text-sm font-bold text-emerald-400 flex items-center gap-1.5 mt-0.5">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        Aktif & Terhubung
-      </h4>
-    </div>
-    <span class="text-2xl">📊</span>
+<div class="flex flex-col gap-4 p-2">
+  <div class="border-b border-slate-800 pb-3">
+    <h2 class="text-lg font-bold text-white">${page.title}</h2>
+    <p class="text-xs text-slate-400">Modul Oracle APEX PIMS - Halaman frm_${page.slug}</p>
   </div>
-
-  <div class="p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur flex items-center justify-between shadow-sm">
-    <div>
-      <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Tipe Form</span>
-      <h4 class="text-sm font-bold text-cyan-400 mt-0.5">Oracle APEX Cloned (PIMS)</h4>
-    </div>
-    <span class="text-2xl">🏛️</span>
-  </div>
-
-  <div class="p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur flex items-center justify-between shadow-sm">
-    <div>
-      <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Keamanan Akses</span>
-      <h4 class="text-sm font-bold text-amber-400 mt-0.5">Role-Based (Level 5)</h4>
-    </div>
-    <span class="text-2xl">🔒</span>
+  <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur">
+    <p class="text-xs text-slate-300">Konten form ${page.title} siap dikustomisasi di Studio.</p>
   </div>
 </div>`;
 	}
 
 	function generateDefaultCss(page: RuntimePage): string {
-		return `/**
- * ============================================================================
- * Custom CSS Stylesheet: ${page.title} (${page.slug})
- * Kustomisasi Stylesheet & Tema yang tidak ada di Form Designer standar
- * ============================================================================
- */
-
-/* 1. Efek Glassmorphism Kustom */
-.pims-glass-card {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		const isLogin = page.slug === 'login' || page.id === 22 || page.title.toLowerCase().includes('login');
+		if (isLogin) {
+			return `/* Custom CSS: Login Harvest Cloud (Page 9999) */
+.pims-login-card {
+  box-shadow: 0 20px 50px -12px rgba(2, 108, 182, 0.15), 0 8px 24px -4px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.pims-glass-card:hover {
-  border-color: rgba(16, 185, 129, 0.3);
-  box-shadow: 0 12px 40px 0 rgba(16, 185, 129, 0.15);
+.btn-apex-primary {
+  background-color: #026cb6;
+  transition: all 0.2s ease;
 }
 
-/* 2. Banner Pemberitahuan Khusus */
-.pims-custom-banner {
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-.pims-custom-banner:hover {
-  transform: translateY(-1px);
-  border-color: rgba(16, 185, 129, 0.5);
+.btn-apex-primary:hover {
+  background-color: #025691;
+  box-shadow: 0 4px 14px rgba(2, 108, 182, 0.35);
 }
 
-/* 3. Custom Scrollbar Halus */
-.custom-scroll::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.custom-scroll::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
-}
-.custom-scroll::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.8);
-  border-radius: 3px;
-}
-.custom-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.6);
-}
+#btn-prefill-demo:hover {
+  background-color: #e0f2fe;
+}`;
+		}
 
-/* 4. Aturan Cetak / Print Stylesheet */
-@media print {
-  .pims-custom-banner, .btn-action, nav, aside {
-    display: none !important;
-  }
-  body {
-    background: white !important;
-    color: black !important;
-  }
+		return `/* Custom CSS: ${page.title} (${page.slug}) */
+table tr:hover td {
+  background-color: rgba(2, 108, 182, 0.06);
 }`;
 	}
 

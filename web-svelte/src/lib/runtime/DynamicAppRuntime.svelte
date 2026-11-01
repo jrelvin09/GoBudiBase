@@ -98,8 +98,9 @@
 	}
 
 	$effect(() => {
-		if (initialPageSlug && runtimeApp?.pages?.some((p) => p.slug === initialPageSlug)) {
+		if (initialPageSlug) {
 			activePageSlug = initialPageSlug;
+			loadRuntime();
 		}
 	});
 
@@ -116,6 +117,102 @@
 	const activePage = $derived<RuntimePage | null>(
 		runtimeApp?.pages?.find((p) => p.slug === activePageSlug) || runtimeApp?.pages?.[0] || null
 	);
+
+	function wireCustomPageAction(node: HTMLElement, page: RuntimePage) {
+		// 1. Prefill Demo button
+		const prefillBtn = node.querySelector('#btn-prefill-demo') as HTMLButtonElement | null;
+		if (prefillBtn) {
+			prefillBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				const userInput = node.querySelector('#pims-username') as HTMLInputElement | null;
+				const passInput = node.querySelector('#pims-password') as HTMLInputElement | null;
+				if (userInput) userInput.value = 'IT000002';
+				if (passInput) passInput.value = 'Palembang@2026';
+			});
+		}
+
+		// 2. Toggle password eye button
+		const togglePassBtn = node.querySelector('#btn-toggle-password') as HTMLButtonElement | null;
+		if (togglePassBtn) {
+			togglePassBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				const passInput = node.querySelector('#pims-password') as HTMLInputElement | null;
+				if (passInput) {
+					passInput.type = passInput.type === 'password' ? 'text' : 'password';
+				}
+			});
+		}
+
+		// 3. Form submit / Sign In button
+		const loginForm = node.querySelector('#pims-login-form') as HTMLFormElement | null;
+		const signinBtn = node.querySelector('#btn-signin') as HTMLButtonElement | null;
+		
+		function doSubmit(e?: Event) {
+			if (e) e.preventDefault();
+			const userInput = node.querySelector('#pims-username') as HTMLInputElement | null;
+			const passInput = node.querySelector('#pims-password') as HTMLInputElement | null;
+			const errContainer = node.querySelector('#pims-login-error') as HTMLElement | null;
+			const errText = node.querySelector('#pims-login-error-text') as HTMLElement | null;
+			
+			const username = userInput ? userInput.value.trim().toUpperCase() : '';
+			const password = passInput ? passInput.value : '';
+
+			if (
+				(username === 'IT000002' && password === 'Palembang@2026') || 
+				(username === 'ADMIN' && password === 'admin') || 
+				(username === 'MUKTI' && password === 'Palembang@2026')
+			) {
+				if (errContainer) errContainer.classList.add('hidden');
+				const userObj = {
+					username,
+					fullName: 'Mukti Assary',
+					role: 'Administrator HCM & Plantation'
+				};
+				try { localStorage.setItem('pims_saved_user', username); } catch {}
+				alert(`Login Berhasil! Selamat datang, ${userObj.fullName} (${userObj.role})`);
+				activePageSlug = 'dashboard';
+			} else {
+				if (errContainer) {
+					errContainer.classList.remove('hidden');
+					if (errText) errText.textContent = 'Invalid Login Credentials (Username atau Password salah)';
+				} else {
+					alert('Invalid Login Credentials');
+				}
+			}
+		}
+
+		if (loginForm) {
+			loginForm.addEventListener('submit', doSubmit);
+		} else if (signinBtn) {
+			signinBtn.addEventListener('click', doSubmit);
+		}
+
+		// 4. Data Navigation Buttons
+		node.querySelectorAll('[data-nav]').forEach((btn) => {
+			btn.addEventListener('click', (e) => {
+				e.preventDefault();
+				const target = btn.getAttribute('data-nav');
+				if (target) activePageSlug = target;
+			});
+		});
+
+		// 5. Search filter in Setup table
+		const searchInput = node.querySelector('#pims-search-input') as HTMLInputElement | null;
+		if (searchInput) {
+			searchInput.addEventListener('input', (e) => {
+				const q = (e.target as HTMLInputElement).value.toLowerCase();
+				const rows = node.querySelectorAll('tbody tr');
+				rows.forEach((row) => {
+					const text = row.textContent?.toLowerCase() || '';
+					(row as HTMLElement).style.display = text.includes(q) ? '' : 'none';
+				});
+			});
+		}
+
+		return {
+			destroy() {}
+		};
+	}
 
 	function generateBastPdf() {
 		exportBastPdf({
@@ -418,13 +515,15 @@
 		onRefresh={loadRuntime}
 	>
 		{#if activePage}
-			{#if activePage.custom_html}
-				<div class="custom-page-html mb-4">
+			{#if activePage.custom_html && activePage.custom_html.trim() !== ''}
+				<!-- 1. USER CUSTOMIZED HTML / CODE BEHIND VIEW (EDITED VIA STUDIO) -->
+				<div 
+					class="pims-dynamic-custom-canvas w-full"
+					use:wireCustomPageAction={activePage}
+				>
 					{@html activePage.custom_html}
 				</div>
-			{/if}
-
-			{#if activePage.components.length === 0 && !activePage.custom_html}
+			{:else if activePage.components.length === 0}
 			<div class="flex h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 p-8 text-center text-slate-500">
 				<Sparkles class="h-10 w-10 text-slate-600 mb-2" />
 				<h4 class="text-sm font-bold text-slate-300">Halaman "{activePage.title}" Kosong</h4>
