@@ -23,6 +23,8 @@ export interface RuntimePage {
 	is_home: boolean;
 	script_front?: string;
 	script_back?: string;
+	custom_html?: string;
+	custom_css?: string;
 	components: RuntimeComponent[];
 }
 
@@ -194,6 +196,8 @@ export async function savePageCode(data: {
 	page_id: number;
 	script_front: string;
 	script_back: string;
+	custom_html?: string;
+	custom_css?: string;
 }): Promise<void> {
 	const res = await fetch(`${API_BUILDER}/pages/code`, {
 		method: 'POST',

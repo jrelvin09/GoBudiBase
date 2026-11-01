@@ -273,6 +273,8 @@ type SavePageCodeReq struct {
 	PageID      int    `json:"page_id"`
 	ScriptFront string `json:"script_front"`
 	ScriptBack  string `json:"script_back"`
+	CustomHTML  string `json:"custom_html"`
+	CustomCSS   string `json:"custom_css"`
 }
 
 func HandleSavePageCode(pool *pgxpool.Pool) http.HandlerFunc {
@@ -284,10 +286,10 @@ func HandleSavePageCode(pool *pgxpool.Pool) http.HandlerFunc {
 		}
 		query := `
 			UPDATE builder.pages
-			SET script_front = $2, script_back = $3
+			SET script_front = $2, script_back = $3, custom_html = $4, custom_css = $5
 			WHERE id = $1
 		`
-		_, err := pool.Exec(r.Context(), query, req.PageID, req.ScriptFront, req.ScriptBack)
+		_, err := pool.Exec(r.Context(), query, req.PageID, req.ScriptFront, req.ScriptBack, req.CustomHTML, req.CustomCSS)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

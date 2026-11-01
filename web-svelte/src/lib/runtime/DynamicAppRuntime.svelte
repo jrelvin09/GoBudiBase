@@ -391,6 +391,12 @@
 								{/if}
 {/snippet}
 
+<svelte:head>
+	{#if activePage?.custom_css}
+		{@html `<style id="custom-page-style-${activePage.slug}">${activePage.custom_css}</style>`}
+	{/if}
+</svelte:head>
+
 {#if loading && !runtimeApp}
 	<div class="flex h-64 items-center justify-center text-sm text-slate-500">
 		<RefreshCw class="mr-2 h-5 w-5 animate-spin text-emerald-500" />
@@ -412,7 +418,13 @@
 		onRefresh={loadRuntime}
 	>
 		{#if activePage}
-		{#if activePage.components.length === 0}
+			{#if activePage.custom_html}
+				<div class="custom-page-html mb-4">
+					{@html activePage.custom_html}
+				</div>
+			{/if}
+
+			{#if activePage.components.length === 0 && !activePage.custom_html}
 			<div class="flex h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 p-8 text-center text-slate-500">
 				<Sparkles class="h-10 w-10 text-slate-600 mb-2" />
 				<h4 class="text-sm font-bold text-slate-300">Halaman "{activePage.title}" Kosong</h4>
