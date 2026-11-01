@@ -628,8 +628,7 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
       loadPage(slug);
     }
 
-    window.addEventListener('hashchange', handleHashChange);
-    window.addEventListener('DOMContentLoaded', () => {
+    function initApp() {
       handleHashChange();
 
       // Sidebar Toggle
@@ -637,11 +636,18 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
       const sidebar = document.getElementById('sidebar');
       if (toggleBtn && sidebar) {
         toggleBtn.addEventListener('click', () => {
-          sidebar.classList.toggle('-ml-64');
+          sidebar.classList.toggle('-ml-72');
         });
       }
-    });
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
   </script>
 </body>
-</html>`, payload.App.Name, port, payload.App.Name, port, len(payload.Pages), string(menusJSON))
+</html>`, payload.App.Name, port, payload.App.Name, port, len(payload.Pages), port, string(menusJSON))
 }
