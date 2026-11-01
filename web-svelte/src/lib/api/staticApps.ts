@@ -10,9 +10,9 @@ export const STATIC_APPS_LIST: AppListItem[] = [
 		theme: 'light',
 		version: '1.0.0',
 		is_published: true,
-		page_count: 10,
+		page_count: 11,
 		created_at: '2026-10-31T18:10:02Z',
-		updated_at: '2026-11-01T01:00:00Z'
+		updated_at: '2026-11-01T01:30:00Z'
 	},
 	{
 		id: 1,
@@ -41,6 +41,54 @@ export const STATIC_PIMS_APP: RuntimeApp = {
 		nav_type: 'side'
 	},
 	pages: [
+		{
+			id: 22,
+			slug: 'login',
+			title: 'Login Harvest Cloud (P-9999)',
+			icon: 'KeyRound',
+			layout: 'single',
+			group_name: 'Autentikasi & Akses',
+			order_num: 0,
+			is_home: false,
+			components: [
+				{
+					id: 50,
+					name: 'Form Autentikasi Pengguna (Page 9999)',
+					type: 'form',
+					region: 'main',
+					order_num: 1,
+					datasource_type: 'none',
+					datasource_config: {},
+					props: {
+						title: 'Plantation Integrated Management System (PIMS)',
+						subtitle: 'Oracle APEX Redwood Login',
+						fields: [
+							{ name: 'username', label: 'Username / NIK', type: 'text', placeholder: 'IT000002', required: true },
+							{ name: 'password', label: 'Password', type: 'password', placeholder: '••••••••••••', required: true },
+							{ name: 'remember_me', label: 'Ingat Username di Perangkat Ini', type: 'checkbox', default: true }
+						]
+					},
+					actions: []
+				},
+				{
+					id: 51,
+					name: 'Tombol Masuk / Sign In',
+					type: 'button',
+					region: 'main',
+					order_num: 2,
+					datasource_type: 'none',
+					datasource_config: {},
+					props: {
+						title: 'Sign In',
+						variant: 'primary',
+						color: '#026cb6'
+					},
+					actions: [
+						{ type: 'submit', target: '/api/v1/auth/login' }
+					]
+				}
+			]
+		},
 		{
 			id: 11,
 			slug: 'dashboard',

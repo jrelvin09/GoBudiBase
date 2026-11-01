@@ -31,6 +31,7 @@
 	import SetupApprovalHierarchy from '$lib/pims/setup/SetupApprovalHierarchy.svelte';
 	import SetupResetPassword from '$lib/pims/setup/SetupResetPassword.svelte';
 	import PimsDashboard from '$lib/pims/PimsDashboard.svelte';
+	import PimsLogin from '$lib/pims/PimsLogin.svelte';
 	import {
 		Layers,
 		FileText,
@@ -430,7 +431,14 @@
 		{:else}
 			<!-- Dynamic Component Renderer by Layout Type -->
 			<div class="flex flex-col gap-6">
-				{#if appSlug === 'gopimsbase' && activePage.slug === 'dashboard'}
+				{#if appSlug === 'gopimsbase' && activePage.slug === 'login'}
+					<div class="flex items-center justify-center p-2">
+						<PimsLogin onLoginSuccess={(u) => {
+							alert(`Login Berhasil! Selamat datang, ${u.fullName} (${u.role})`);
+							activePageSlug = 'dashboard';
+						}} />
+					</div>
+				{:else if appSlug === 'gopimsbase' && activePage.slug === 'dashboard'}
 					<PimsDashboard />
 				{:else if appSlug === 'gopimsbase' && activePage.slug === 'setup-user-informations'}
 					<SetupUserInformations />

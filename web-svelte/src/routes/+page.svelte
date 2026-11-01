@@ -15,12 +15,13 @@
 		CheckCircle2,
 		Puzzle,
 		Trees,
-		ChevronDown
+		ChevronDown,
+		Lock
 	} from 'lucide-svelte';
 
 	type MainMode = 'pims' | 'runtime' | 'studio_apps' | 'studio_designer' | 'sql_studio' | 'catalog';
 
-	let currentMode = $state<MainMode>('studio_designer');
+	let currentMode = $state<MainMode>('pims');
 	let activeAppSlug = $state<string>('gopimsbase');
 	let targetPageSlug = $state<string>('');
 	let currentUser = $state<PimsUser | null>(null);
@@ -40,6 +41,19 @@
 	<!-- Platform Mode Switcher Bar -->
 	<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-2.5 shadow-xl backdrop-blur">
 		<div class="flex flex-wrap items-center gap-1.5">
+			<!-- Tab Form Login APEX (P-9999) -->
+			<button
+				type="button"
+				onclick={() => {
+					currentUser = null;
+					currentMode = 'pims';
+				}}
+				class="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer {currentMode === 'pims' && !currentUser ? 'bg-[#026cb6] text-white shadow-lg shadow-[#026cb6]/40 ring-1 ring-white/20' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'}"
+			>
+				<Lock class="h-4 w-4" />
+				<span>Form Login (P-9999)</span>
+			</button>
+
 			<!-- Mode Studio Designer (Highlight GoPimsBase Designer) -->
 			<button
 				type="button"
@@ -70,15 +84,17 @@
 				<span>App Runtime</span>
 			</button>
 
-			<!-- Mode Harvest Cloud (Oracle APEX Direct Portal) -->
-			<button
-				type="button"
-				onclick={() => (currentMode = 'pims')}
-				class="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition cursor-pointer {currentMode === 'pims' ? 'bg-sky-700 text-white shadow-lg shadow-sky-700/40' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'}"
-			>
-				<Trees class="h-4 w-4" />
-				<span>PIMS Portal (APEX Clone)</span>
-			</button>
+			<!-- Mode Harvest Cloud Portal (Aktif jika sudah login) -->
+			{#if currentUser}
+				<button
+					type="button"
+					onclick={() => (currentMode = 'pims')}
+					class="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition cursor-pointer {currentMode === 'pims' && currentUser ? 'bg-sky-700 text-white shadow-lg shadow-sky-700/40' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'}"
+				>
+					<Trees class="h-4 w-4" />
+					<span>Portal PIMS ({currentUser.username})</span>
+				</button>
+			{/if}
 
 			<!-- Mode SQL Studio -->
 			<button
@@ -163,6 +179,10 @@
 			<AppManager
 				onOpenAppDesigner={handleOpenDesigner}
 				onOpenAppRuntime={handleOpenRuntime}
+				onOpenLogin={() => {
+					currentUser = null;
+					currentMode = 'pims';
+				}}
 			/>
 		{:else if currentMode === 'studio_designer'}
 			<PageDesigner

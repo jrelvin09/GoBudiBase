@@ -15,15 +15,18 @@
 		Trees,
 		Play,
 		Search,
-		ShieldCheck
+		ShieldCheck,
+		Lock
 	} from 'lucide-svelte';
 
 	let {
 		onOpenAppDesigner,
-		onOpenAppRuntime
+		onOpenAppRuntime,
+		onOpenLogin
 	}: {
 		onOpenAppDesigner: (appSlug: string) => void;
 		onOpenAppRuntime?: (appSlug: string) => void;
+		onOpenLogin?: () => void;
 	} = $props();
 
 	let apps = $state<AppListItem[]>([]);
@@ -222,21 +225,33 @@
 					</div>
 
 					<!-- Card Actions -->
-					<div class="mt-6 flex items-center justify-between gap-3 border-t border-slate-800 pt-4">
+					<div class="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-4">
 						<button
 							type="button"
 							onclick={() => onOpenAppDesigner(app.slug)}
-							class="flex flex-1 items-center justify-center gap-2 rounded-xl {isPims ? 'bg-[#026cb6] hover:bg-[#025a99] text-white shadow-lg shadow-[#026cb6]/30' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30'} px-4 py-2 text-xs font-bold transition cursor-pointer"
+							class="flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl {isPims ? 'bg-[#026cb6] hover:bg-[#025a99] text-white shadow-lg shadow-[#026cb6]/30' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30'} px-3 py-2 text-xs font-bold transition cursor-pointer"
 						>
 							<Edit3 class="h-4 w-4" />
 							<span>Buka Page Designer</span>
 						</button>
 
+						{#if isPims && onOpenLogin}
+							<button
+								type="button"
+								onclick={onOpenLogin}
+								class="flex items-center justify-center gap-1.5 rounded-xl border border-sky-500/40 bg-sky-950/40 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-900/60 transition cursor-pointer"
+								title="Buka Form Login APEX"
+							>
+								<Lock class="h-3.5 w-3.5" />
+								<span>Login Form</span>
+							</button>
+						{/if}
+
 						{#if onOpenAppRuntime}
 							<button
 								type="button"
 								onclick={() => onOpenAppRuntime?.(app.slug)}
-								class="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition cursor-pointer"
+								class="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition cursor-pointer"
 								title="Jalankan runtime aplikasi"
 							>
 								<Play class="h-3.5 w-3.5 fill-current text-slate-400" />
