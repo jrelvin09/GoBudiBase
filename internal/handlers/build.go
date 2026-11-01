@@ -253,7 +253,7 @@ func HandleBuildApp(pool *pgxpool.Pool, mainHandler http.Handler) http.HandlerFu
 
 			// Static files handler with fallback to index.html for SPA
 			fileServer := http.FileServer(http.Dir(absOutputDir))
-			runnerRouter.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+			runnerRouter.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
 				reqPath := filepath.Clean(r.URL.Path)
 				targetPath := filepath.Join(absOutputDir, reqPath)
 				info, err := os.Stat(targetPath)
