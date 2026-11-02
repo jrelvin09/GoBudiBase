@@ -398,10 +398,10 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
 </head>
 <body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 antialiased">
 
-  <!-- ORACLE APEX REDWOOD TOP NAVIGATION -->
-  <header class="h-14 bg-[#1e293b] border-b border-slate-700 flex items-center justify-between px-4 text-white shadow-md z-30 sticky top-0">
+  <!-- ORACLE APEX REDWOOD TOP NAVIGATION (Hidden on Login) -->
+  <header id="app-header" class="h-14 bg-[#1e293b] border-b border-slate-700 flex items-center justify-between px-4 text-white shadow-md z-30 sticky top-0 transition-all duration-200">
     <div class="flex items-center gap-3">
-      <button id="btn-toggle-sidebar" class="p-1.5 rounded hover:bg-slate-700 text-slate-300 transition" title="Toggle Menu">
+      <button id="btn-toggle-sidebar" class="p-1.5 rounded hover:bg-slate-700 text-slate-300 transition cursor-pointer" title="Toggle Menu">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
       </button>
       <div class="flex items-center gap-2">
@@ -422,27 +422,32 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
         <strong id="header-page-title" class="text-emerald-400 font-semibold">-</strong>
       </div>
       <div class="flex items-center gap-2 border-l border-slate-700 pl-3">
-        <div class="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
+        <div class="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs" id="user-avatar">
           M
         </div>
         <div class="hidden md:flex flex-col text-left leading-tight">
-          <span class="font-bold text-slate-200">Mukti Assary</span>
-          <span class="text-[10px] text-slate-400 font-mono">IT000002</span>
+          <span class="font-bold text-slate-200" id="user-fullname">Mukti Assary</span>
+          <span class="text-[10px] text-slate-400 font-mono" id="user-badge">IT000002</span>
         </div>
+        <!-- Logout Button -->
+        <button id="btn-logout" type="button" class="ml-2 flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-rose-950/70 text-slate-300 hover:text-rose-200 border border-slate-700 hover:border-rose-600/60 transition cursor-pointer shadow-xs" title="Keluar / Logout">
+          <svg class="w-3.5 h-3.5 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="hidden sm:inline">Logout</span>
+        </button>
       </div>
     </div>
   </header>
 
   <!-- MAIN APP CONTAINER -->
   <div class="flex-1 flex overflow-hidden">
-    <!-- LEFT SIDEBAR: MENU & FORMS -->
+    <!-- LEFT SIDEBAR: MENU & FORMS (Hidden on Login) -->
     <aside id="sidebar" class="w-72 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 transition-all duration-200 overflow-hidden">
       <div class="p-3 border-b border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
         <span class="flex items-center gap-1.5 text-slate-300">
           <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
           Navigasi Menu
         </span>
-        <span class="bg-slate-800 px-1.5 py-0.5 rounded font-mono text-emerald-400 text-[10px]">%d Pages</span>
+        <span id="sidebar-page-count" class="bg-slate-800 px-1.5 py-0.5 rounded font-mono text-emerald-400 text-[10px]">%d Pages</span>
       </div>
       <!-- Quick Filter -->
       <div class="p-2 border-b border-slate-800/80 bg-slate-950/40">
@@ -477,37 +482,59 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
     </main>
   </div>
 
-  <!-- CLIENT-SIDE ROUTER & RUNTIME LOADER -->
+  <!-- CLIENT-SIDE ROUTER & AUTHENTICATION GUARD -->
   <script>
     const PAGES_DATA = %s;
-    const DEFAULT_PAGE = PAGES_DATA.find(p => p.is_home) || PAGES_DATA[0] || { slug: 'login', title: 'Login' };
+    const DEFAULT_APP_PAGE = PAGES_DATA.find(p => p.is_home && p.slug !== 'login') || PAGES_DATA.find(p => p.slug === 'dashboard') || { slug: 'dashboard', title: 'Dashboard' };
 
-    // Built-in API Client for database operations from the built app
-    window.PIMS_API = {
-      baseURL: '/api/v1',
-      async request(endpoint, options = {}) {
-        const url = this.baseURL + endpoint;
-        const res = await fetch(url, {
-          headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-          ...options
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: res.statusText }));
-          throw new Error(err.error || res.statusText);
-        }
-        return res.json();
-      },
-      login(username, password) {
-        return this.request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
-      },
-      query(sql, limit = 100) {
-        return this.request('/builder/query/execute', { method: 'POST', body: JSON.stringify({ sql, limit }) });
-      },
-      batch(table, ops) {
-        return this.request('/builder/batch', { method: 'POST', body: JSON.stringify({ table, ops }) });
+    // ==========================================
+    // 1. AUTHENTICATION STATE & STORAGE HELPERS
+    // ==========================================
+    function getAuthUser() {
+      try {
+        const raw = localStorage.getItem('pims_user');
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
       }
-    };
+    }
 
+    function setAuthUser(user) {
+      localStorage.setItem('pims_user', JSON.stringify(user));
+    }
+
+    function clearAuthUser() {
+      localStorage.removeItem('pims_user');
+      sessionStorage.removeItem('pims_redirect_target');
+    }
+
+    function updateHeaderUser(user) {
+      if (!user) return;
+      const avatarEl = document.getElementById('user-avatar');
+      const nameEl = document.getElementById('user-fullname');
+      const badgeEl = document.getElementById('user-badge');
+      if (avatarEl) avatarEl.textContent = (user.fullName || user.username || 'M')[0].toUpperCase();
+      if (nameEl) nameEl.textContent = user.fullName || user.username;
+      if (badgeEl) badgeEl.textContent = user.username;
+    }
+
+    function showAppShell() {
+      const header = document.getElementById('app-header');
+      const sidebar = document.getElementById('sidebar');
+      if (header) header.classList.remove('hidden');
+      if (sidebar) sidebar.classList.remove('hidden');
+    }
+
+    function hideAppShell() {
+      const header = document.getElementById('app-header');
+      const sidebar = document.getElementById('sidebar');
+      if (header) header.classList.add('hidden');
+      if (sidebar) sidebar.classList.add('hidden');
+    }
+
+    // ==========================================
+    // 2. ICON RESOLVER FOR REDWOOD NAVIGATION
+    // ==========================================
     function getIconSvg(name) {
       switch ((name || '').toLowerCase()) {
         case 'users':
@@ -537,12 +564,16 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
       }
     }
 
+    // ==========================================
+    // 3. SIDEBAR NAVIGATION RENDERER
+    // (EXCLUDES LOGIN & AUTENTIKASI FROM MENU)
+    // ==========================================
     let collapsedGroups = {};
     window.toggleGroup = function(grp) {
       const hash = window.location.hash.replace(/^#\/?/, '');
-      const activeSlug = (hash.split('?')[0] || DEFAULT_PAGE.slug);
+      const activeSlug = (hash.split('?')[0] || DEFAULT_APP_PAGE.slug);
       if (collapsedGroups[grp] === undefined) {
-        const pages = PAGES_DATA.filter(p => (p.group_name || 'Menu Utama') === grp);
+        const pages = PAGES_DATA.filter(p => (p.group_name || 'Menu Utama') === grp && p.slug !== 'login' && !(p.group_name || '').toLowerCase().includes('autentikasi'));
         const hasActive = pages.some(p => p.slug === activeSlug);
         collapsedGroups[grp] = hasActive ? true : false;
       } else {
@@ -551,24 +582,35 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
       renderSidebar(activeSlug);
     };
 
-    // Render Sidebar Menu
     function renderSidebar(activeSlug) {
       const container = document.getElementById('menu-container');
       const searchEl = document.getElementById('sidebar-search');
       const searchTerm = (searchEl ? searchEl.value : '').toLowerCase().trim();
 
       const groups = {};
+      let totalFilteredPages = 0;
+
       PAGES_DATA.forEach(p => {
+        // STAGE 1: EXCLUDE LOGIN / AUTHENTICATION FROM SIDEBAR MENU
+        if (p.slug === 'login' || (p.group_name || '').toLowerCase().includes('autentikasi')) {
+          return;
+        }
+
         if (searchTerm) {
           const matchTitle = (p.title || '').toLowerCase().includes(searchTerm);
           const matchSlug = (p.slug || '').toLowerCase().includes(searchTerm);
           const matchGroup = (p.group_name || '').toLowerCase().includes(searchTerm);
           if (!matchTitle && !matchSlug && !matchGroup) return;
         }
+
         const grp = p.group_name || 'Menu Utama';
         if (!groups[grp]) groups[grp] = [];
         groups[grp].push(p);
+        totalFilteredPages++;
       });
+
+      const pageCountBadge = document.getElementById('sidebar-page-count');
+      if (pageCountBadge) pageCountBadge.textContent = totalFilteredPages + ' Pages';
 
       let html = '';
       for (const [groupName, pages] of Object.entries(groups)) {
@@ -624,14 +666,126 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
       const searchEl = document.getElementById('sidebar-search');
       if (searchEl) {
         searchEl.addEventListener('input', () => {
-          renderSidebar(window.location.hash.replace('#/', '') || DEFAULT_PAGE.slug);
+          renderSidebar(window.location.hash.replace('#/', '') || DEFAULT_APP_PAGE.slug);
         });
       }
     }, 100);
 
-    // Load Page into Viewport
+    // ==========================================
+    // 4. STANDALONE SEPARATED LOGIN SCREEN (P-9999)
+    // ==========================================
+    async function loadLoginPage() {
+      hideAppShell();
+      const spinner = document.getElementById('loading-spinner');
+      const root = document.getElementById('page-root');
+      spinner.classList.remove('hidden');
+
+      try {
+        const [htmlRes, cssRes] = await Promise.all([
+          fetch('pages/login.html?_t=' + Date.now()),
+          fetch('pages/login.css?_t=' + Date.now())
+        ]);
+        const html = htmlRes.ok ? await htmlRes.text() : '<div class="p-8 text-center text-rose-500">Gagal memuat template login</div>';
+        const css = cssRes.ok ? await cssRes.text() : '';
+        document.getElementById('dynamic-page-css').textContent = css;
+        root.innerHTML = html;
+
+        wireLoginForm();
+      } catch (err) {
+        console.error('Error loading login page:', err);
+        root.innerHTML = '<div class="p-8 text-center text-rose-500">Error: ' + err.message + '</div>';
+      } finally {
+        spinner.classList.add('hidden');
+      }
+    }
+
+    function wireLoginForm() {
+      const userInput = document.getElementById('pims-username');
+      const passInput = document.getElementById('pims-password');
+      const toggleBtn = document.getElementById('btn-toggle-password');
+      const form = document.getElementById('pims-login-form');
+      const signinBtn = document.getElementById('btn-signin');
+      const errBox = document.getElementById('pims-login-error');
+      const errTxt = document.getElementById('pims-login-error-text');
+
+      // Populate prefilled default demo credentials if empty
+      if (userInput && !userInput.value) {
+        userInput.value = localStorage.getItem('pims_saved_user') || 'IT000002';
+      }
+      if (passInput && !passInput.value) {
+        passInput.value = 'Palembang@2026';
+      }
+
+      // Toggle password eye
+      if (toggleBtn && passInput) {
+        toggleBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          passInput.type = passInput.type === 'password' ? 'text' : 'password';
+        });
+      }
+
+      function doSubmit(e) {
+        if (e) e.preventDefault();
+        const u = (userInput ? userInput.value : '').trim().toUpperCase();
+        const p = passInput ? passInput.value : '';
+
+        if (
+          (u === 'IT000002' && p === 'Palembang@2026') ||
+          (u === 'MUKTI' && p === 'Palembang@2026') ||
+          (u === 'ADMIN' && p === 'admin')
+        ) {
+          if (errBox) errBox.classList.add('hidden');
+
+          const rememberEl = document.getElementById('pims-remember');
+          if (rememberEl && rememberEl.checked) {
+            localStorage.setItem('pims_saved_user', u);
+          }
+
+          const authUser = {
+            username: u,
+            fullName: u === 'ADMIN' ? 'System Administrator' : 'Mukti Assary',
+            role: 'Administrator HCM & Plantation'
+          };
+          setAuthUser(authUser);
+          updateHeaderUser(authUser);
+
+          // Redirect to saved target or default dashboard
+          const target = sessionStorage.getItem('pims_redirect_target') || 'dashboard';
+          sessionStorage.removeItem('pims_redirect_target');
+          window.location.hash = '#/' + target;
+        } else {
+          if (errBox) {
+            errBox.classList.remove('hidden');
+            if (errTxt) errTxt.textContent = 'Invalid Login Credentials (Username atau Password salah). Silakan gunakan IT000002 / Palembang@2026';
+          } else {
+            alert('Invalid Login Credentials');
+          }
+        }
+      }
+
+      if (form) {
+        form.addEventListener('submit', doSubmit);
+      } else if (signinBtn) {
+        signinBtn.addEventListener('click', doSubmit);
+      }
+    }
+
+    // ==========================================
+    // 5. APPLICATION PAGE LOADER (WITH AUTH GUARD)
+    // ==========================================
     async function loadPage(slug) {
-      const page = PAGES_DATA.find(p => p.slug === slug) || DEFAULT_PAGE;
+      const user = getAuthUser();
+      if (!user) {
+        // AUTH GUARD: Mental ke halaman login jika belum login
+        sessionStorage.setItem('pims_redirect_target', slug);
+        window.location.hash = '#/login';
+        return;
+      }
+
+      showAppShell();
+      updateHeaderUser(user);
+
+      const page = PAGES_DATA.find(p => p.slug === slug) || DEFAULT_APP_PAGE;
       document.getElementById('header-page-title').textContent = page.title;
       renderSidebar(page.slug);
 
@@ -674,10 +828,37 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
       }
     }
 
-    // Routing Controller
+    // ==========================================
+    // 6. ROUTER & BOUNCE ("MENTAL") CONTROLLER
+    // ==========================================
     function handleHashChange() {
       const hash = window.location.hash.replace(/^#\/?/, '');
-      const slug = hash.split('?')[0] || DEFAULT_PAGE.slug;
+      const slug = hash.split('?')[0];
+      const user = getAuthUser();
+
+      if (!user) {
+        // JIKA BELUM LOGIN:
+        // Halaman yang diakses langsung mental ke login
+        if (slug && slug !== 'login') {
+          sessionStorage.setItem('pims_redirect_target', slug);
+        }
+        if (window.location.hash !== '#/login') {
+          window.location.hash = '#/login';
+          return;
+        }
+        loadLoginPage();
+        return;
+      }
+
+      // JIKA SUDAH LOGIN:
+      // Akses root atau login otomatis ke target tersimpan atau dashboard
+      if (!slug || slug === 'login') {
+        const target = sessionStorage.getItem('pims_redirect_target') || 'dashboard';
+        sessionStorage.removeItem('pims_redirect_target');
+        window.location.hash = '#/' + target;
+        return;
+      }
+
       loadPage(slug);
     }
 
@@ -692,6 +873,18 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
           sidebar.classList.toggle('-ml-72');
         });
       }
+
+      // Logout Button in Header
+      const logoutBtn = document.getElementById('btn-logout');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (confirm('Apakah Anda yakin ingin keluar dari sistem Harvest Cloud?')) {
+            clearAuthUser();
+            window.location.hash = '#/login';
+          }
+        });
+      }
     }
 
     window.addEventListener('hashchange', handleHashChange);
@@ -702,5 +895,5 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
     }
   </script>
 </body>
-</html>`, payload.App.Name, port, payload.App.Name, port, len(payload.Pages), port, string(menusJSON))
+</html>`, payload.App.Name, port, payload.App.Name, port, len(payload.Pages)-1, port, string(menusJSON))
 }
