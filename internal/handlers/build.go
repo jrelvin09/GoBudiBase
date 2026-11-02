@@ -606,20 +606,10 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
         const grp = p.group_name || 'Menu Utama';
         if (!groups[grp]) groups[grp] = [];
         groups[grp].push(p);
-        totalFilteredPages++;
       });
-
-      const pageCountBadge = document.getElementById('sidebar-page-count');
-      if (pageCountBadge) pageCountBadge.textContent = totalFilteredPages + ' Pages';
 
       let html = '';
       for (const [groupName, pages] of Object.entries(groups)) {
-        const hasActive = pages.some(p => p.slug === activeSlug);
-        let isCollapsed = collapsedGroups[groupName];
-        if (isCollapsed === undefined) {
-          isCollapsed = !hasActive && !searchTerm;
-        }
-
         let grpIcon = 'settings';
         const gLow = groupName.toLowerCase();
         if (gLow.includes('dashboard')) grpIcon = 'home';
@@ -628,6 +618,41 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
         else if (gLow.includes('hcm') || gLow.includes('workforce')) grpIcon = 'users';
         else if (gLow.includes('report') || gLow.includes('laporan')) grpIcon = 'folder';
 
+        // 1. SINGLE-PAGE MODULES (DIRECT LINK - TIDAK DI-DOUBLE DENGAN ACCORDION)
+        if (pages.length === 1) {
+          const p = pages[0];
+          totalFilteredPages++;
+          const isActive = p.slug === activeSlug;
+          const activeClass = isActive 
+            ? 'bg-sky-600 text-white font-semibold shadow-xs ring-1 ring-sky-400/30' 
+            : 'text-slate-300 hover:text-white hover:bg-slate-800/70';
+
+          html += '<div class="mb-1">';
+          html += '<a href="#/' + p.slug + '" class="group flex items-center justify-between px-2.5 py-2 text-xs font-semibold rounded-lg transition ' + activeClass + '" title="' + p.title + '">';
+          html += '<span class="flex items-center gap-2 truncate">';
+          html += getIconSvg(grpIcon);
+          html += '<span class="truncate">' + groupName + '</span>';
+          html += '</span>';
+          html += '</a>';
+          html += '</div>';
+          continue;
+        }
+
+        // 2. MULTI-PAGE MODULES (DEDUPLIKASI: HILANGKAN CHILD YANG MENGULANG NAMA MENU UTAMA)
+        const hub = pages.find(p => 
+          p.title.trim().toLowerCase() === groupName.trim().toLowerCase() || 
+          p.slug.trim().toLowerCase() === groupName.trim().toLowerCase() ||
+          p.slug === groupName.toLowerCase().replace(/\s+/g, '-')
+        );
+        const childPages = pages.filter(p => p !== hub);
+        totalFilteredPages += childPages.length;
+
+        const hasActive = pages.some(p => p.slug === activeSlug);
+        let isCollapsed = collapsedGroups[groupName];
+        if (isCollapsed === undefined) {
+          isCollapsed = !hasActive && !searchTerm;
+        }
+
         html += '<div class="flex flex-col gap-0.5 mb-1">';
         html += '<button type="button" onclick="window.toggleGroup(\'' + groupName.replace(/'/g, "\\'") + '\')" class="w-full flex items-center justify-between px-2.5 py-2 text-xs font-semibold ' + (hasActive ? 'text-white bg-slate-800/80' : 'text-slate-300 hover:text-white hover:bg-slate-800/50') + ' rounded-lg transition cursor-pointer text-left">';
         html += '<span class="flex items-center gap-2 truncate">';
@@ -635,14 +660,14 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
         html += '<span class="truncate">' + groupName + '</span>';
         html += '</span>';
         html += '<div class="flex items-center gap-1.5">';
-        html += '<span class="bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[10px] text-slate-400">' + pages.length + '</span>';
+        html += '<span class="bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[10px] text-slate-400">' + childPages.length + '</span>';
         html += '<svg class="w-3.5 h-3.5 text-slate-400 transition-transform ' + (isCollapsed ? '' : 'rotate-90') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
         html += '</div>';
         html += '</button>';
 
         if (!isCollapsed) {
           html += '<div class="flex flex-col gap-0.5 pl-3 border-l border-slate-800/80 ml-3.5 my-1">';
-          pages.forEach(p => {
+          childPages.forEach(p => {
             const isActive = p.slug === activeSlug;
             const isSub = !!p.parent_slug;
             const activeClass = isActive 
@@ -658,10 +683,13 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
         }
         html += '</div>';
       }
+
+      const pageCountBadge = document.getElementById('sidebar-page-count');
+      if (pageCountBadge) pageCountBadge.textContent = totalFilteredPages + ' Pages';
       container.innerHTML = html;
     }
 
-    // Bind sidebar search event
+        // Bind sidebar search event
     setTimeout(() => {
       const searchEl = document.getElementById('sidebar-search');
       if (searchEl) {
