@@ -539,7 +539,8 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
 
     let collapsedGroups = {};
     window.toggleGroup = function(grp) {
-      const activeSlug = window.location.hash.replace('#/', '') || DEFAULT_PAGE.slug;
+      const hash = window.location.hash.replace(/^#\/?/, '');
+      const activeSlug = (hash.split('?')[0] || DEFAULT_PAGE.slug);
       if (collapsedGroups[grp] === undefined) {
         const pages = PAGES_DATA.filter(p => (p.group_name || 'Menu Utama') === grp);
         const hasActive = pages.some(p => p.slug === activeSlug);
@@ -676,7 +677,7 @@ func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
     // Routing Controller
     function handleHashChange() {
       const hash = window.location.hash.replace(/^#\/?/, '');
-      const slug = hash || DEFAULT_PAGE.slug;
+      const slug = hash.split('?')[0] || DEFAULT_PAGE.slug;
       loadPage(slug);
     }
 
