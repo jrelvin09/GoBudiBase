@@ -245,6 +245,7 @@ func HandleBuildApp(pool *pgxpool.Pool, mainHandler http.Handler) http.HandlerFu
 			// Create dedicated runner router for this port
 			runnerRouter := chi.NewRouter()
 			runnerRouter.Use(chimw.Recoverer)
+			runnerRouter.Use(chimw.Compress(5))
 
 			// Forward /api/* requests directly to main GoBudiBase backend router
 			if mainHandler != nil {
@@ -272,8 +273,8 @@ func HandleBuildApp(pool *pgxpool.Pool, mainHandler http.Handler) http.HandlerFu
 			newServer := &http.Server{
 				Addr:         fmt.Sprintf(":%d", req.Port),
 				Handler:      runnerRouter,
-				ReadTimeout:  15 * time.Second,
-				WriteTimeout: 15 * time.Second,
+				ReadTimeout:  60 * time.Second,
+				WriteTimeout: 60 * time.Second,
 			}
 
 			activeBuildServers[req.Port] = newServer
@@ -364,8 +365,34 @@ func generateDefaultPageHTML(title string, slug string, componentsRaw json.RawMe
 </div>`, title, slug, title, slug, title)
 }
 
+type SlimPageMenu struct {
+	ID         int     `json:"id"`
+	Slug       string  `json:"slug"`
+	Title      string  `json:"title"`
+	Icon       string  `json:"icon"`
+	Layout     string  `json:"layout"`
+	GroupName  string  `json:"group_name"`
+	ParentSlug *string `json:"parent_slug"`
+	IsHome     bool    `json:"is_home"`
+	OrderIndex int     `json:"order_index"`
+}
+
 func generateStandaloneIndexHTML(payload RuntimeAppPayload, port int) string {
-	menusJSON, _ := json.Marshal(payload.Pages)
+	slimMenus := make([]SlimPageMenu, len(payload.Pages))
+	for i, p := range payload.Pages {
+		slimMenus[i] = SlimPageMenu{
+			ID:         p.ID,
+			Slug:       p.Slug,
+			Title:      p.Title,
+			Icon:       p.Icon,
+			Layout:     p.Layout,
+			GroupName:  p.GroupName,
+			ParentSlug: p.ParentSlug,
+			IsHome:     p.IsHome,
+			OrderIndex: p.OrderNum,
+		}
+	}
+	menusJSON, _ := json.Marshal(slimMenus)
 
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="id">
